@@ -1,0 +1,10 @@
+FROM golang:1.21
+
+WORKDIR /app
+
+COPY . .
+RUN go mod download
+RUN go build -o main cmd/api/main.go
+
+COPY wait-for-it.sh /usr/local/bin/wait-for-it.sh
+RUN chmod +x /usr/local/bin/wait-for-it.sh
