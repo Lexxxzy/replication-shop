@@ -94,6 +94,7 @@ func Register(c echo.Context) error {
 
 func SetupUserSession(c echo.Context, user data.User) (error, bool) {
 	sess, err := session.Get("session", c)
+
 	if err != nil {
 		log.Error("Session get error: ", err)
 		return util.JsonResponse(c, http.StatusInternalServerError, "Error setting session."), true

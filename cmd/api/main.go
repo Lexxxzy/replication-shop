@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo-contrib/session"
@@ -12,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/Lexxxzy/go-echo-template/db"
+	"github.com/Lexxxzy/go-echo-template/handlers"
 )
 
 func main() {
@@ -45,6 +48,8 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 		return nil, fmt.Errorf("error connecting to database: %s", err.Error())
 	}
 
+	gob.Register(uuid.UUID{})
+
 	e := echo.New()
 	e.HideBanner = true
 
@@ -76,11 +81,17 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 // e: The Echo instance to initialize the routes.
 // No return values.
 func initRoutes(e *echo.Echo) {
-	// e.POST("/login", handlers.LoginUser)
-	// e.POST("/register", handlers.Register)
-	// e.POST("/logout", handlers.LogoutUser, handlers.WithAuthentication)
+	e.POST("/login", handlers.LoginUser)
+	e.POST("/register", handlers.Register)
+	e.GET("/products", handlers.GetProducts)
+	e.POST("/logout", handlers.LogoutUser, handlers.WithAuthentication)
 
-	// api := e.Group("/api", handlers.WithAuthentication)
-	// api.POST("/user/add", handlers.AddUser)
-	// api.GET("/user", handlers.GetUser)
+	my := e.Group("/my", handlers.WithAuthentication)
+	my.GET("/cart", handlers.GetCart)
+	my.PUT("/cart/add", handlers.AddProductToCart)
+	my.DELETE("/cart/remove", handlers.RemoveProductFromCart)
+
+	my.GET("/orders", handlers.GetOrders)
+	my.POST("/orders/add", handlers.PlaceOrder)
+	my.DELETE("/orders/cancel", handlers.CancelOrder)
 }

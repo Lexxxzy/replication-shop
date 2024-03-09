@@ -24,7 +24,7 @@ type User struct {
 
 func CreateUser(user *User, c echo.Context) error {
 	query := `
-		INSERT INTO users (name, email, password) VALUES (?, ?, ?, ?)
+		INSERT INTO users (name, email, password) VALUES (?, ?, ?)
 		RETURNING id, created_at
 	`
 	_, err := db.Bun.NewRaw(query, user.Name, user.Email, user.Password).Exec(c.Request().Context())
