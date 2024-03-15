@@ -44,7 +44,8 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 		}
 	}
 
-	if err := db.Init(); err != nil {
+	configPath := os.Getenv("PGPOOL_INSTANCES_PATH")
+	if err := db.Init(configPath); err != nil {
 		return nil, fmt.Errorf("error connecting to database: %s", err.Error())
 	}
 

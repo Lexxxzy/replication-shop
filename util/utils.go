@@ -3,6 +3,8 @@ package util
 import (
 	"unicode"
 
+	"github.com/BurntSushi/toml"
+	"github.com/Lexxxzy/go-echo-template/internal"
 	"github.com/labstack/echo/v4"
 )
 
@@ -46,4 +48,12 @@ func IsValidPassword(password string) (bool, string) {
 	}
 
 	return false, message[:len(message)-1] + "."
+}
+
+func LoadConfig(path string) (*types.Config, error) {
+	var config types.Config
+	if _, err := toml.DecodeFile(path, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
 }

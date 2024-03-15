@@ -3,6 +3,7 @@ module github.com/Lexxxzy/go-echo-template
 go 1.21.1
 
 require (
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect

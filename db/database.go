@@ -3,63 +3,78 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/joho/godotenv"
+	"log"
+	"os"
+	"time"
+
+	_ "github.com/joho/godotenv"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
-	_ "github.com/uptrace/bun/driver/pgdriver"
-	"github.com/uptrace/bun/extra/bundebug"
-	"log"
-	"os"
+
+	"github.com/Lexxxzy/go-echo-template/internal"
+	"github.com/Lexxxzy/go-echo-template/util"
 )
 
-var Bun *bun.DB
-
-func Setup() (*sql.DB, error) {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal(err)
-	}
-	var (
-		dbname   = os.Getenv("POSTGRES_DB")
-		dbuser   = os.Getenv("POSTGRES_USER")
-		dbpasswd = os.Getenv("POSTGRES_PASSWORD")
-		dbhost   = os.Getenv("DB_HOST")
-		dbport   = os.Getenv("DB_PORT")
-		dsn      = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbuser, dbpasswd, dbhost, dbport, dbname)
-	)
-
-	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-
-	err := db.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+type DBManager struct {
+	instances []*bun.DB
+	configs   []types.PgPoolInstance
+	index     int
 }
 
-// Init initializes the database connection.
-//
-// It sets up the database connection using the Setup function and
-// adds a query hook using the bundebug package. The function returns
-// an error if there was an issue connecting to the database.
-//
-// Parameters:
-//
-//	None
-//
-// Return:
-//
-//	error: An error if there was an issue connecting to the database.
-func Init() error {
-	db, err := Setup()
-	if err != nil {
-		log.Fatal("Error connecting to database. " + err.Error())
-		return err
+var Proxy *DBManager
+
+func NewDBManager(configs []types.PgPoolInstance) *DBManager {
+	manager := &DBManager{
+		configs: configs,
+		index:   0,
+	}
+	manager.instances = make([]*bun.DB, len(configs))
+	for i, config := range configs {
+		manager.connect(i, config, 0)
+	}
+	return manager
+}
+
+func (manager *DBManager) connect(index int, config types.PgPoolInstance, attempt int) {
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), config.IP, config.Port, os.Getenv("POSTGRES_DB"))
+	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
+	bunDB := bun.NewDB(db, pgdialect.New())
+	if err := db.Ping(); err != nil {
+		log.Printf("Failed to connect to database instance at %s:%d, error: %v\n", config.IP, config.Port, err)
+		delay := time.Minute
+		if attempt == 1 {
+			delay = time.Hour
+		}
+		time.AfterFunc(delay, func() {
+			manager.connect(index, config, attempt+1)
+		})
+		return
+	} else {
+		log.Printf("Connected to database instance at %s:%d\n", config.IP, config.Port)
 	}
 
-	Bun = bun.NewDB(db, pgdialect.New())
-	Bun.AddQueryHook(bundebug.NewQueryHook())
+	manager.instances[index] = bunDB
+}
+
+func (manager *DBManager) GetCurrentDB() *bun.DB {
+	for i := 0; i < len(manager.instances); i++ {
+		idx := (manager.index + i) % len(manager.instances)
+		if manager.instances[idx] != nil {
+			manager.index = (idx + 1) % len(manager.instances)
+			return manager.instances[idx]
+		}
+	}
+	log.Fatal("No database connection is available")
+	return nil
+}
+
+func Init(configPath string) error {
+	config, err := util.LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("error loading configuration: %v", err)
+	}
+	Proxy = NewDBManager(config.PgPoolInstances)
 
 	return nil
 }
