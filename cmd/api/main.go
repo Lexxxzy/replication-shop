@@ -22,8 +22,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	e.Logger.Fatal(e.Start(":1323"))
+	host := fmt.Sprintf("%s:%s", os.Getenv("HOST"), os.Getenv("PORT"))
+	e.Logger.Fatal(e.Start(host))
 }
 
 func initializeAppEnvironment() (*echo.Echo, error) {

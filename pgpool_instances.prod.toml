@@ -1,0 +1,7 @@
+[[pg_pool_instance]]
+ip = "pgpool-1"
+port = 5432
+
+[[pg_pool_instance]]
+ip = "pgpool-2"
+port = 5432

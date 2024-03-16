@@ -1,7 +1,7 @@
 [[pg_pool_instance]]
 ip = "127.0.0.1"
-port = 9999
+port = 5433
 
 [[pg_pool_instance]]
 ip = "127.0.0.1"
-port = 10000
+port = 5434

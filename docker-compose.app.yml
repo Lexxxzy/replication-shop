@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  app-1:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PGPOOL_INSTANCES_PATH: ./pgpool_instances.prod.toml
+    ports:
+      - "8000"
+  app-2:
+    build: .
+    env_file:
+      - .env
+    environment:
+      PGPOOL_INSTANCES_PATH: ./pgpool_instances.prod.toml
+    ports:
+      - "8000"
+  nginx:
+    image: bitnami/nginx:latest
+    restart: always
+    volumes:
+      - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app-1
+      - app-2
