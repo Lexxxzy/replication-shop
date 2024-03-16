@@ -13,6 +13,10 @@ func JsonResponse(c echo.Context, code int, message string) error {
 	return c.JSON(code, map[string]string{"message": message})
 }
 
+func JsonErrorResponse(c echo.Context, code int, message string) error {
+	return c.JSON(code, map[string]string{"error": message})
+}
+
 // IsValidPassword checks if a password is valid.
 //
 // Parameters:

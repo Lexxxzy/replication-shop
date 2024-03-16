@@ -61,6 +61,7 @@ func (manager *DBManager) GetCurrentDB() *bun.DB {
 	for i := 0; i < len(manager.instances); i++ {
 		idx := (manager.index + i) % len(manager.instances)
 		if manager.instances[idx] != nil {
+			log.Printf("INFO: Using database instance at %s:%d\n", manager.configs[idx].IP, manager.configs[idx].Port)
 			manager.index = (idx + 1) % len(manager.instances)
 			return manager.instances[idx]
 		}

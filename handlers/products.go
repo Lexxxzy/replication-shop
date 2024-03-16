@@ -143,8 +143,8 @@ func PlaceOrder(c echo.Context) error {
 	}
 	deliveryAddress := c.FormValue("delivery_address")
 
-	if err := data.PlaceOrder(owner.String(), deliveryAddress); err != nil {
-		return util.JsonResponse(c, http.StatusInternalServerError, "Error placing order.")
+	if status, err := data.PlaceOrder(owner.String(), deliveryAddress); err != nil {
+		return util.JsonErrorResponse(c, status, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -167,9 +167,9 @@ func CancelOrder(c echo.Context) error {
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
-	if err := data.CancelOrder(owner.String(), orderID.ID); err != nil {
+	if status, err := data.CancelOrder(owner.String(), orderID.ID); err != nil {
 		log.Error("Database query failed: ", err)
-		return util.JsonResponse(c, http.StatusInternalServerError, "Error cancelling order.")
+		return util.JsonErrorResponse(c, status, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Lexxxzy/go-echo-template/db"
 	"github.com/labstack/gommon/log"
+	"net/http"
 	"strings"
 )
 
@@ -250,12 +251,12 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 	return cartItems, nil
 }
 
-func PlaceOrder(userID string, deliveryAddress string) error {
+func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	// Начало транзакции
 	tx, err := db.Proxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error starting transaction")
 	}
 
 	// Шаг 1: Создание заказа
@@ -269,7 +270,7 @@ func PlaceOrder(userID string, deliveryAddress string) error {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error creating order: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error creating order, please try again later")
 	}
 
 	// Проверка, что корзина не пуста
@@ -279,7 +280,7 @@ func PlaceOrder(userID string, deliveryAddress string) error {
 	if err != nil || cartItemCount == 0 {
 		tx.Rollback()
 		log.Error("Error checking cart items: ", err)
-		return fmt.Errorf("cart is empty")
+		return http.StatusBadRequest, fmt.Errorf("cart is empty")
 	}
 
 	// Шаг 2: Копирование содержимого корзины в заказ
@@ -295,7 +296,7 @@ func PlaceOrder(userID string, deliveryAddress string) error {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error copying cart items to order items: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
 	}
 
 	// Шаг 3: Очистка корзины
@@ -309,44 +310,38 @@ func PlaceOrder(userID string, deliveryAddress string) error {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error clearing cart: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
 	}
 
 	// Завершение транзакции
 	err = tx.Commit()
 	if err != nil {
 		log.Error("Error committing transaction: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
 
-func CancelOrder(userID string, orderID int) error {
+func CancelOrder(userID string, orderID int) (int, error) {
 	tx, err := db.Proxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 	// Шаг 0: Проверка, что заказ принадлежит пользователю
 	var ownerID string
 	ownerQuery := `SELECT user_id FROM orders WHERE id = ?`
 	err = tx.QueryRow(ownerQuery, orderID).Scan(&ownerID)
-	if ownerID == "" {
+	if ownerID == "" || ownerID != userID {
 		tx.Rollback()
-		return fmt.Errorf("Order not found")
+		return http.StatusNotFound, fmt.Errorf("order not found")
 	}
 
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error fetching order owner: ", err)
-		return err
-	}
-
-	if ownerID != userID {
-		tx.Rollback()
-		log.Error("Order does not belong to the user")
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
 	// Шаг 1: Удаление содержимого заказа
@@ -355,7 +350,7 @@ func CancelOrder(userID string, orderID int) error {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error deleting order items: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
 	// Шаг 2: Удаление заказа
@@ -364,17 +359,17 @@ func CancelOrder(userID string, orderID int) error {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error deleting order: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
 	// Завершение транзакции
 	err = tx.Commit()
 	if err != nil {
 		log.Error("Error committing transaction: ", err)
-		return err
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
 
 func MapRowsToProducts(rows *sql.Rows) ([]Product, error) {
