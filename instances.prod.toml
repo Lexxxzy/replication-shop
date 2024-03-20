@@ -3,8 +3,8 @@ ip = "pgpool"
 port = 5432
 
 [[redis_sentinel_instance]]
-master_name = "redis-master"
-sentinel_addrs = ["redis-master:26379"]
+master_name = "mymaster"
+sentinel_addrs = ["redis-sentinel-1:26379","redis-sentinel-2:26379","redis-sentinel-3:26379"]
 
 [[cassandra_instance]]
 ip = "cassandra-1"
