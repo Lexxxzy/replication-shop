@@ -5,4 +5,6 @@ services:
     build:
       context: .
       dockerfile: benchmark/Dockerfile
-    command: dotnet run ShopClient.dll --config nginx_config.prod.json --log load_test_logs.csv
+    command: /bin/sh scripts/entrypoint.sh
+    volumes:
+      - ./benchmark/logs:/app/logs
