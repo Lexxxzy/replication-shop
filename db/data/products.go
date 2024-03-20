@@ -25,11 +25,11 @@ type CartItem struct {
 }
 
 type Order struct {
-	ID              int     `bun:"type:int,pk" json:"id"`
-	DeliveryAddress string  `bun:"type:char(256),notnull" json:"delivery_address"`
-	OrderDate       string  `bun:"type:timestamp,notnull" json:"order_date"`
-	TotalPrice      float64 `bun:"type:decimal(10,2),notnull" json:"total_price"`
-	CartItems       []CartItem
+	ID              int        `bun:"type:int,pk" json:"id"`
+	DeliveryAddress string     `bun:"type:char(256),notnull" json:"delivery_address"`
+	OrderDate       string     `bun:"type:timestamp,notnull" json:"order_date"`
+	TotalPrice      float64    `bun:"type:decimal(10,2),notnull" json:"total_price"`
+	CartItems       []CartItem `json:"cart_items"`
 }
 
 func GetAllProducts() ([]Product, error) {
@@ -251,12 +251,12 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 	return cartItems, nil
 }
 
-func PlaceOrder(userID string, deliveryAddress string) (int, error) {
+func PlaceOrder(userID string, deliveryAddress string) (int, int, error) {
 	// Начало транзакции
 	tx, err := db.Proxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
-		return http.StatusInternalServerError, fmt.Errorf("error starting transaction")
+		return http.StatusInternalServerError, 0, fmt.Errorf("error starting transaction")
 	}
 
 	// Шаг 1: Создание заказа
@@ -270,7 +270,7 @@ func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error creating order: ", err)
-		return http.StatusInternalServerError, fmt.Errorf("error creating order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error creating order, please try again later")
 	}
 
 	// Проверка, что корзина не пуста
@@ -280,7 +280,7 @@ func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	if err != nil || cartItemCount == 0 {
 		tx.Rollback()
 		log.Error("Error checking cart items: ", err)
-		return http.StatusBadRequest, fmt.Errorf("cart is empty")
+		return http.StatusBadRequest, orderID, fmt.Errorf("cart is empty")
 	}
 
 	// Шаг 2: Копирование содержимого корзины в заказ
@@ -296,7 +296,7 @@ func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error copying cart items to order items: ", err)
-		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
 	// Шаг 3: Очистка корзины
@@ -310,17 +310,17 @@ func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	if err != nil {
 		tx.Rollback()
 		log.Error("Error clearing cart: ", err)
-		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
 	// Завершение транзакции
 	err = tx.Commit()
 	if err != nil {
 		log.Error("Error committing transaction: ", err)
-		return http.StatusInternalServerError, fmt.Errorf("error placing order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, orderID, nil
 }
 
 func CancelOrder(userID string, orderID int) (int, error) {

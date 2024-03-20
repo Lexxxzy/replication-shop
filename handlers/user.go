@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -50,6 +51,7 @@ func LoginUser(c echo.Context) error {
 }
 
 func Register(c echo.Context) error {
+	log.Info("Registering user.")
 	var reqdata data.User
 
 	if err := c.Bind(&reqdata); err != nil {
@@ -57,23 +59,28 @@ func Register(c echo.Context) error {
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
+	log.Info(fmt.Sprintf("Request data: %s %s", reqdata.Name, reqdata.Email))
+
 	addr, err := mail.ParseAddress(reqdata.Email)
 	if err != nil {
+		log.Error("Invalid email format. - " + err.Error())
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid email.")
 	}
 
 	isExists, _ := data.IsUserExists(addr.Address)
 	if isExists {
+		log.Error("User already exists.")
 		return util.JsonResponse(c, http.StatusBadRequest, "User already exists.")
 	}
 
-	isValid, message := util.IsValidPassword(reqdata.Password)
+	/* isValid, message := util.IsValidPassword(reqdata.Password)
 	if !isValid {
 		return util.JsonResponse(c, http.StatusBadRequest, message)
-	}
+	} */
 
 	password, err := bcrypt.GenerateFromPassword([]byte(reqdata.Password), 14)
 	if err != nil {
+		log.Error("Error hashing password: " + err.Error())
 		return util.JsonResponse(c, http.StatusInternalServerError, "Something went wrong.")
 	}
 
@@ -84,6 +91,7 @@ func Register(c echo.Context) error {
 	}
 
 	if err, done := SetupUserSession(c, user); done {
+		log.Error("Error setting up user session: ", err)
 		return err
 	}
 

@@ -143,12 +143,14 @@ func PlaceOrder(c echo.Context) error {
 	}
 	deliveryAddress := c.FormValue("delivery_address")
 
-	if status, err := data.PlaceOrder(owner.String(), deliveryAddress); err != nil {
+	status, oid, err := data.PlaceOrder(owner.String(), deliveryAddress)
+
+	if err != nil {
 		return util.JsonErrorResponse(c, status, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "Order placed successfully.",
+		"order_id": oid,
 	})
 }
 
