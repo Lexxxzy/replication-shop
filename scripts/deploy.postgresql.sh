@@ -9,5 +9,5 @@ if [ -z "${SERVER_IP}" ]; then
   exit 1
 fi
 
-PGPOOL_BACKEND_NODES=1:pg-1:5432,2:pg-2:5432,3:${SERVER_IP}:5433,4:${SERVER_IP}:5435 \
+PGPOOL_BACKEND_NODES=1:pg-1:5432,2:pg-2:5432,3:${SERVER_IP}:5432,4:${SERVER_IP}:5433 \
 docker compose -f docker-compose.postgresql.yml up -d
