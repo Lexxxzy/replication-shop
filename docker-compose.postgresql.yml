@@ -53,6 +53,8 @@ services:
       - PGPOOL_ADMIN_USERNAME=admin
       - PGPOOL_ADMIN_PASSWORD=postgres
       - PGPOOL_ENABLE_LOAD_BALANCING=yes
+      - PGPOOL_HEALTH_CHECK_TIMEOUT=12
+      - PGPOOL_HEALTH_CHECK_MAX_RETRIES=10
     ports:
       - "6432:5432"
     healthcheck:
