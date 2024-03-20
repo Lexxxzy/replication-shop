@@ -37,7 +37,7 @@ func GetAllProducts() ([]Product, error) {
 
 	query := "SELECT p.id, p.name, p.price, p.manufacturer, pt.name as type_name FROM products p JOIN product_types pt ON p.product_type_id = pt.id"
 
-	rows, err := db.Proxy.GetCurrentDB().Query(query)
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query)
 	if err != nil {
 		log.Error("Error fetching all products: ", err)
 		return nil, err
@@ -55,7 +55,7 @@ func SearchProductByName(name string) ([]Product, error) {
 	var products []Product
 	query := "SELECT id, name, price, manufacturer, product_type_id FROM products WHERE name ILIKE ?"
 
-	rows, err := db.Proxy.GetCurrentDB().Query(query, "%"+name+"%")
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, "%"+name+"%")
 	if err != nil {
 		log.Error("Error searching product by name: ", err)
 		return nil, err
@@ -81,7 +81,7 @@ func GetCartItems(userID string) ([]CartItem, error) {
         WHERE c.user_id = ?
     `
 
-	rows, err := db.Proxy.GetCurrentDB().Query(query, userID)
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, userID)
 	if err != nil {
 		log.Error("Error fetching cart items: ", err)
 		return nil, err
@@ -96,7 +96,7 @@ func GetCartItems(userID string) ([]CartItem, error) {
 }
 
 func AddProductToCart(userID string, productID int, quantity int) error {
-	tx, err := db.Proxy.GetCurrentDB().Begin()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
 		return err
@@ -141,7 +141,7 @@ func AddProductToCart(userID string, productID int, quantity int) error {
 }
 
 func RemoveProductFromCart(userID string, productID int) error {
-	tx, err := db.Proxy.GetCurrentDB().Begin()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
 		return err
@@ -189,7 +189,7 @@ func GetOrders(userID string) ([]Order, error) {
 	FROM orders o
 	WHERE user_id = ?
     `
-	rows, err := db.Proxy.GetCurrentDB().Query(query, userID)
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, userID)
 	if err != nil {
 		log.Error("Error fetching orders: ", err)
 		return nil, err
@@ -237,7 +237,7 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 	JOIN products p ON oi.product_id = p.id
 	WHERE oi.order_id = ?
     `
-	rows, err := db.Proxy.GetCurrentDB().Query(query, orderID)
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, orderID)
 	if err != nil {
 		log.Error("Error fetching order items: ", err)
 		return nil, err
@@ -253,7 +253,7 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 
 func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 	// Начало транзакции
-	tx, err := db.Proxy.GetCurrentDB().Begin()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
 		return http.StatusInternalServerError, fmt.Errorf("error starting transaction")
@@ -324,7 +324,7 @@ func PlaceOrder(userID string, deliveryAddress string) (int, error) {
 }
 
 func CancelOrder(userID string, orderID int) (int, error) {
-	tx, err := db.Proxy.GetCurrentDB().Begin()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
 		log.Error("Error starting transaction: ", err)
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")

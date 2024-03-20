@@ -16,16 +16,16 @@ import (
 	"github.com/Lexxxzy/go-echo-template/util"
 )
 
-type DBManager struct {
+type PostgresqlManager struct {
 	instances []*bun.DB
 	configs   []types.PgPoolInstance
 	index     int
 }
 
-var Proxy *DBManager
+var PostgresqlProxy *PostgresqlManager
 
-func NewDBManager(configs []types.PgPoolInstance) *DBManager {
-	manager := &DBManager{
+func NewPostgresqlManager(configs []types.PgPoolInstance) *PostgresqlManager {
+	manager := &PostgresqlManager{
 		configs: configs,
 		index:   0,
 	}
@@ -36,7 +36,7 @@ func NewDBManager(configs []types.PgPoolInstance) *DBManager {
 	return manager
 }
 
-func (manager *DBManager) connect(index int, config types.PgPoolInstance, attempt int) {
+func (manager *PostgresqlManager) connect(index int, config types.PgPoolInstance, attempt int) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), config.IP, config.Port, os.Getenv("POSTGRES_DB"))
 	db := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	bunDB := bun.NewDB(db, pgdialect.New())
@@ -57,7 +57,7 @@ func (manager *DBManager) connect(index int, config types.PgPoolInstance, attemp
 	manager.instances[index] = bunDB
 }
 
-func (manager *DBManager) GetCurrentDB() *bun.DB {
+func (manager *PostgresqlManager) GetCurrentDB() *bun.DB {
 	for i := 0; i < len(manager.instances); i++ {
 		idx := (manager.index + i) % len(manager.instances)
 		if manager.instances[idx] != nil {
@@ -70,12 +70,12 @@ func (manager *DBManager) GetCurrentDB() *bun.DB {
 	return nil
 }
 
-func Init(configPath string) error {
+func InitPostgresql(configPath string) error {
 	config, err := util.LoadConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("error loading configuration: %v", err)
 	}
-	Proxy = NewDBManager(config.PgPoolInstances)
+	PostgresqlProxy = NewPostgresqlManager(config.PgPoolInstances)
 
 	return nil
 }

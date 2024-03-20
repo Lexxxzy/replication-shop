@@ -27,7 +27,7 @@ func CreateUser(user *User, c echo.Context) error {
 		INSERT INTO users (name, email, password) VALUES (?, ?, ?)
 		RETURNING id, created_at
 	`
-	_, err := db.Proxy.GetCurrentDB().NewRaw(query, user.Name, user.Email, user.Password).Exec(c.Request().Context())
+	_, err := db.PostgresqlProxy.GetCurrentDB().NewRaw(query, user.Name, user.Email, user.Password).Exec(c.Request().Context())
 	if err != nil {
 		log.Error("Error creating user. ", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create user")
@@ -38,27 +38,27 @@ func CreateUser(user *User, c echo.Context) error {
 
 func GetUser(user *User) error {
 	query := "SELECT * FROM users WHERE id = ?"
-	return db.Proxy.GetCurrentDB().NewRaw(query, user.ID).Scan(context.Background(), user)
+	return db.PostgresqlProxy.GetCurrentDB().NewRaw(query, user.ID).Scan(context.Background(), user)
 }
 
 func GetUserById[T string | uuid.UUID](id T) (User, error) {
 	var user User
 	query := "SELECT * FROM users WHERE id = ?"
-	err := db.Proxy.GetCurrentDB().NewRaw(query, id).Scan(context.Background(), &user)
+	err := db.PostgresqlProxy.GetCurrentDB().NewRaw(query, id).Scan(context.Background(), &user)
 	return user, err
 }
 
 func GetUserByEmail(email string) (User, error) {
 	var user User
 	query := "SELECT * FROM users WHERE email = ?"
-	err := db.Proxy.GetCurrentDB().NewRaw(query, email).Scan(context.Background(), &user)
+	err := db.PostgresqlProxy.GetCurrentDB().NewRaw(query, email).Scan(context.Background(), &user)
 	return user, err
 }
 
 func IsUserExists(email string) (bool, error) {
 	var exists bool
 	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)"
-	err := db.Proxy.GetCurrentDB().NewRaw(query, email).Scan(context.Background(), &exists)
+	err := db.PostgresqlProxy.GetCurrentDB().NewRaw(query, email).Scan(context.Background(), &exists)
 	if err != nil {
 		return false, err
 	}

@@ -1,0 +1,19 @@
+[[pgpool_instance]]
+ip = "127.0.0.1"
+port = 6432
+
+[[redis_sentinel_instance]]
+master_name = "mymaster"
+sentinel_addrs = [":26379",":26380",":26381"]
+
+[[cassandra_instance]]
+ip = "127.0.0.1"
+port = 9042
+
+[[cassandra_instance]]
+ip = "127.0.0.1"
+port = 9043
+
+[[cassandra_instance]]
+ip = "127.0.0.1"
+port = 9044

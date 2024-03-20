@@ -7,7 +7,7 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      PGPOOL_INSTANCES_PATH: ./pgpool_instances.prod.toml
+      CONFIG_PATH: ./instances.prod.toml
     ports:
       - "8000"
   app-2:
@@ -16,7 +16,7 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      PGPOOL_INSTANCES_PATH: ./pgpool_instances.prod.toml
+      CONFIG_PATH: ./instances.prod.toml
     ports:
       - "8000"
   nginx:
@@ -26,6 +26,3 @@ services:
       - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
     ports:
       - "80:80"
-    depends_on:
-      - app-1
-      - app-2
