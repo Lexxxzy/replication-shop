@@ -5,6 +5,4 @@ services:
     build:
       context: .
       dockerfile: benchmark/Dockerfile
-    command: dotnet run ShopClient.dll --config nginx_config.prod.json --log access.log
-    volumes:
-      - ./benchmark:/app
+    command: dotnet run ShopClient.dll --config nginx_config.prod.json --log load_test_logs.csv

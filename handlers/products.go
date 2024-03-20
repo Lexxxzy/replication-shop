@@ -80,7 +80,7 @@ func AddProductToCart(c echo.Context) error {
 	}{}
 
 	if err := c.Bind(&cartItem); err != nil {
-		log.Error("Error binding request data. Cart item was not added.")
+		log.Error("Error binding request dumps. Cart item was not added.")
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
@@ -105,7 +105,7 @@ func RemoveProductFromCart(c echo.Context) error {
 	}{}
 
 	if err := c.Bind(&cartItem); err != nil {
-		log.Error("Error binding request data. Cart item was not removed.")
+		log.Error("Error binding request dumps. Cart item was not removed.")
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
@@ -165,7 +165,7 @@ func CancelOrder(c echo.Context) error {
 	}{}
 
 	if err := c.Bind(&orderID); err != nil {
-		log.Error("Error binding request data. Order was not cancelled.")
+		log.Error("Error binding request dumps. Order was not cancelled.")
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 

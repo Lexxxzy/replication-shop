@@ -7,7 +7,9 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      CONFIG_PATH: ./instances.prod.toml
+      CONFIG_PATH: instances.prod.toml
+    volumes:
+      - ./instances.prod.toml:/app/instances.prod.toml
     ports:
       - "8000"
   app-2:
@@ -16,13 +18,35 @@ services:
       - .env
     environment:
       HOST: 0.0.0.0
-      CONFIG_PATH: ./instances.prod.toml
+      CONFIG_PATH: instances.prod.toml
+    volumes:
+      - ./instances.prod.toml:/app/instances.prod.toml
     ports:
       - "8000"
-  nginx:
+  app-3:
+    build: .
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      CONFIG_PATH: instances.prod.toml
+    volumes:
+      - ./instances.prod.toml:/app/instances.prod.toml
+    ports:
+      - "8000"
+  nginx-1:
     image: bitnami/nginx:latest
+    hostname: nginx-1
     restart: always
     volumes:
       - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
     ports:
-      - "80:80"
+      - "81:80"
+  nginx-2:
+    image: bitnami/nginx:latest
+    hostname: nginx-2
+    restart: always
+    volumes:
+      - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
+    ports:
+      - "82:80"

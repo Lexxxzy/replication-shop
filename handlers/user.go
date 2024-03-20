@@ -20,7 +20,7 @@ func LoginUser(c echo.Context) error {
 	var user data.User
 
 	if err := c.Bind(&user); err != nil {
-		log.Error("Error binding request data. User was not logged in.")
+		log.Error("Error binding request dumps. User was not logged in.")
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
@@ -55,11 +55,11 @@ func Register(c echo.Context) error {
 	var reqdata data.User
 
 	if err := c.Bind(&reqdata); err != nil {
-		log.Error("Error binding request data. User was not created. " + err.Error())
+		log.Error("Error binding request dumps. User was not created. " + err.Error())
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
-	log.Info(fmt.Sprintf("Request data: %s %s", reqdata.Name, reqdata.Email))
+	log.Info(fmt.Sprintf("Request dumps: %s %s", reqdata.Name, reqdata.Email))
 
 	addr, err := mail.ParseAddress(reqdata.Email)
 	if err != nil {
