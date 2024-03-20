@@ -34,20 +34,19 @@ public class User
         Logger = logger;
     }
 
-    private async Task<HttpResponseMessage> SendRequestWithLoggingAsync(HttpClient client, HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendRequestWithLoggingAsync(HttpClient client, HttpRequestMessage request, string readOrWrite)
     {
         if (!string.IsNullOrEmpty(Token))
         {
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("session", Token);
         }
 
-        Logger.LogToFile($"Request: {request.Method} {request.RequestUri}");
+        Logger.LogToFile("request", request.RequestUri?.ToString(), request.Method.ToString(), "null", 0, readOrWrite);
         var stopwatch = Stopwatch.StartNew();
         var response = await client.SendAsync(request);
         stopwatch.Stop();
 
-        Logger.LogToFile(
-            $"Response: {(int)response.StatusCode} {response.ReasonPhrase} (Duration: {stopwatch.ElapsedMilliseconds} ms)");
+        Logger.LogToFile("response", request.RequestUri?.ToString(), request.Method.ToString(), response.StatusCode.ToString(), stopwatch.ElapsedMilliseconds,readOrWrite);
         return response;
     }
 
@@ -57,7 +56,7 @@ public class User
         {
             Content = JsonContent.Create(new { Name, Email, Password })
         };
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "write");
     }
 
     public async Task<HttpResponseMessage> LoginUserAsync(HttpClient client)
@@ -66,7 +65,7 @@ public class User
         {
             Content = JsonContent.Create(new { Email, Password })
         };
-        var response = await SendRequestWithLoggingAsync(client, request);
+        var response = await SendRequestWithLoggingAsync(client, request, "read");
         Token = response.Headers.GetValues("Set-Cookie").First();
         return response;
     }
@@ -74,7 +73,7 @@ public class User
     public async Task<IEnumerable<Product>> GetAllProductsAsync(HttpClient client)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "products");
-        var response = await SendRequestWithLoggingAsync(client, request);
+        var response = await SendRequestWithLoggingAsync(client, request, "read");
         var productsRaw = await response.Content.ReadAsStringAsync();
         var products = JsonConvert.DeserializeObject<Dictionary<string, List<Product>>>(productsRaw)!["products"];
         return products;
@@ -83,7 +82,7 @@ public class User
     public async Task<Product> GetProductAsync(HttpClient client, string productName)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, $"products?title={productName}");
-        var response = await SendRequestWithLoggingAsync(client, request);
+        var response = await SendRequestWithLoggingAsync(client, request, "read");
         var productRaw = await response.Content.ReadAsStringAsync();
         var product = JsonConvert.DeserializeObject<Dictionary<string, List<Product>>>(productRaw)!["products"][0];
         return product;
@@ -96,7 +95,7 @@ public class User
             Content = new StringContent(JsonConvert.SerializeObject(new { item_id = productId, quantity = 1 }),
                 Encoding.UTF8, "application/json")
         };
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "write");
     }
 
     public async Task<HttpResponseMessage> RemoveProductFromCartAsync(HttpClient client, int productId)
@@ -106,13 +105,13 @@ public class User
             Content = new StringContent(JsonConvert.SerializeObject(new { item_id = productId }), Encoding.UTF8,
                 "application/json")
         };
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "write");
     }
 
     public async Task<List<CartItem>> GetCartAsync(HttpClient client)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "my/cart");
-        var response = await SendRequestWithLoggingAsync(client, request);
+        var response = await SendRequestWithLoggingAsync(client, request, "read");
         var responseContent = await response.Content.ReadAsStringAsync();
 
         var cart = JsonConvert.DeserializeObject<ShoppingCart>(responseContent) ?? new ShoppingCart();
@@ -122,7 +121,7 @@ public class User
     public async Task<HttpResponseMessage> GetOrderAsync(HttpClient client)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "my/orders");
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "read");
     }
 
     public async Task<int> AddOrderAsync(HttpClient client, string deliveryAddress)
@@ -134,7 +133,7 @@ public class User
                 new KeyValuePair<string, string>("delivery_address", deliveryAddress)
             })
         };
-        var response = await SendRequestWithLoggingAsync(client, request);
+        var response = await SendRequestWithLoggingAsync(client, request, "write");
 
         var responseContent = await response.Content.ReadAsStringAsync();
         var orderId = JsonConvert.DeserializeObject<Dictionary<string, int>>(responseContent)!["order_id"];
@@ -148,12 +147,12 @@ public class User
             Content = new StringContent(JsonConvert.SerializeObject(new { order_id = orderId }), Encoding.UTF8,
                 "application/json")
         };
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "write");
     }
 
     public async Task<HttpResponseMessage> LogoutUserAsync(HttpClient client)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "logout");
-        return await SendRequestWithLoggingAsync(client, request);
+        return await SendRequestWithLoggingAsync(client, request, "write");
     }
 }

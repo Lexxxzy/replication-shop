@@ -36,6 +36,7 @@ while (true)
     catch (Exception ex)
     {
         Console.WriteLine(ex.Message);
+        break;
     }
 }
 
