@@ -1,0 +1,44 @@
+id,name,price,manufacturer,type_name
+1,Sony WH-1000XM4,350,Sony,1
+2,Bose QC 35 II,300,Bose,1
+3,Sennheiser HD 560S,199.99,Sennheiser,1
+4,Audio-Technica ATH-M50x,149,Audio-Technica,1
+5,Beyerdynamic DT 770 PRO,159,Beyerdynamic,1
+6,AKG K702,349,AKG,1
+7,Philips SHP9500,75,Philips,1
+8,Grado SR80e,125,Grado,1
+9,Hifiman Sundara,349,Hifiman,1
+10,Focal Listen Professional,299,Focal,1
+11,Sony MDR7506,100,Sony,1
+12,Jabra Elite 85h,250,Jabra,1
+13,JBL Flip 5,120,JBL,2
+14,Marshall Emberton,150,Marshall,2
+15,Sony SRS-XB12,58,Sony,2
+16,Ultimate Ears BOOM 3,129.99,Ultimate Ears,2
+17,Anker Soundcore 2,39.99,Anker,2
+18,Bose SoundLink Mini II,199,Bose,2
+19,Sonos Move,399,Sonos,2
+20,Bang & Olufsen Beoplay A1,250,Bang & Olufsen,2
+21,Yamaha WX-010 MusicCast,179.95,Yamaha,2
+22,Harman Kardon Onyx Studio 6,479,Harman Kardon,2
+23,JBL Charge 4,140,JBL,2
+24,Marshall Stockwell II,219.99,Marshall,2
+25,Shure SM7B,400,Shure,3
+26,Rode NT-USB,170,Rode,3
+27,Audio-Technica AT2020,99,Audio-Technica,3
+28,Blue Yeti USB,129.99,Blue,3
+29,AKG Pro Audio C214,399,AKG,3
+30,Behringer C-1,49,Behringer,3
+31,Rode NT1-A,229,Rode,3
+32,Sennheiser MD 421 II,379.95,Sennheiser,3
+33,Neumann TLM 102,699,Neumann,3
+34,Shure Beta 58A,159,Shure,3
+35,Electro-Voice RE20,449,Electro-Voice,3
+36,Zoom H1n Handy Recorder,119.99,Zoom,3
+37,Аудиокабель Jack 3.5mm,10,Generic,4
+38,USB Type-C,8,Generic,4
+39,HDMI 2.0,15,Generic,4
+40,Lightning to USB,25,Apple,4
+41,DisplayPort to DisplayPort,20,Generic,4
+42,XLR 3-Pin,10,Generic,4
+43,AUX 3.5mm (10m),12,Generic,4

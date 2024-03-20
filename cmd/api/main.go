@@ -53,9 +53,9 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 		return nil, fmt.Errorf("error connecting to redis: %s", err.Error())
 	}
 
-	//if err := db.InitCassandra(configPath); err != nil {
-	//	return nil, fmt.Errorf("error connecting to cassandra: %s", err.Error())
-	//}
+	if err := db.InitCassandra(configPath); err != nil {
+		return nil, fmt.Errorf("error connecting to cassandra: %s", err.Error())
+	}
 
 	gob.Register(uuid.UUID{})
 

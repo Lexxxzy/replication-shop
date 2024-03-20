@@ -30,7 +30,7 @@ Start all:
 ```bash
  docker compose \
  -f docker-compose.app.yml \
- -f docker-compose.postgresql.yml 
+ -f docker-compose.postgresql.yml \
  -f docker-compose.redis.yml \
  -f docker-compose.cassandra.yml \
  up -d --build

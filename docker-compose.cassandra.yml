@@ -1,28 +1,52 @@
 version: '3.9'
 
 services:
-  cassandra-1:
+  cassandra-1: # seed node
     image: bitnami/cassandra:latest
+    hostname: cassandra-1
     environment:
-      - CASSANDRA_SEEDS=cassandra-1,cassandra-2,cassandra-3
-      - CASSANDRA_CLUSTER_NAME=cassandra_cluster
-      - CASSANDRA_PASSWORD_SEEDER=yes
       - ALLOW_EMPTY_PASSWORD=yes
+      - CASSANDRA_SEEDS=cassandra-1
+      - CASSANDRA_IGNORE_INITDB_SCRIPTS=no
+      - CASSANDRA_CLUSTER_NAME=cassandra-cluster
+      - CASSANDRA_NODE_NAME=cassandra-1
+    volumes:
+      - cassandra_1_data:/bitnami
+      - ./scripts/cassandra.initdb.sh:/docker-entrypoint-initdb.d/cassandra.initdb.sh
+      - ./db/statements/:/statements
     ports:
       - "9042:9042"
   cassandra-2:
     image: bitnami/cassandra:latest
+    hostname: cassandra-2
     environment:
-      - CASSANDRA_SEEDS=cassandra-1,cassandra-2,cassandra-3
-      - CASSANDRA_CLUSTER_NAME=cassandra_cluster
       - ALLOW_EMPTY_PASSWORD=yes
+      - CASSANDRA_SEEDS=cassandra-1,cassandra-2,cassandra-3
+      - CASSANDRA_IGNORE_INITDB_SCRIPTS=yes
+      - CASSANDRA_CLUSTER_NAME=cassandra-cluster
+      - CASSANDRA_NODE_NAME=cassandra-2
+    volumes:
+      - cassandra_2_data:/bitnami
+      - ./scripts/cassandra.initdb.sh:/docker-entrypoint-initdb.d/cassandra.initdb.sh
+      - ./db/statements/:/statements
     ports:
       - "9043:9042"
   cassandra-3:
     image: bitnami/cassandra:latest
+    hostname: cassandra-3
     environment:
-      - CASSANDRA_SEEDS=cassandra-1,cassandra-2,cassandra-3
-      - CASSANDRA_CLUSTER_NAME=cassandra_cluster
       - ALLOW_EMPTY_PASSWORD=yes
+      - CASSANDRA_SEEDS=cassandra-1,cassandra-2,cassandra-3
+      - CASSANDRA_IGNORE_INITDB_SCRIPTS=yes
+      - CASSANDRA_CLUSTER_NAME=cassandra-cluster
+      - CASSANDRA_NODE_NAME=cassandra-3
+    volumes:
+      - cassandra_3_data:/bitnami
+      - ./scripts/cassandra.initdb.sh:/docker-entrypoint-initdb.d/cassandra.initdb.sh
+      - ./db/statements/:/statements
     ports:
       - "9044:9042"
+volumes:
+  cassandra_1_data:
+  cassandra_2_data:
+  cassandra_3_data:

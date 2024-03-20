@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/Lexxxzy/go-echo-template/internal"
@@ -32,15 +33,15 @@ func NewCassandraManager(configs []types.CassandraInstance) *CassandraManager {
 
 func (manager *CassandraManager) connect(index int, config types.CassandraInstance, attempt int) {
 	cluster := gocql.NewCluster(config.IP)
+	cluster.IgnorePeerAddr = true
 	cluster.Port = config.Port
-	cluster.ProtoVersion = 4
-
+	cluster.Keyspace = os.Getenv("CASSANDRA_KEYSPACE")
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Printf("Failed to connect to Cassandra instance at %s:%d, error: %v\n", config.IP, config.Port, err)
 		delay := time.Minute
 		if attempt == 1 {
-			delay = time.Hour
+			delay = time.Minute + 9
 		}
 		time.AfterFunc(delay, func() {
 			manager.connect(index, config, attempt+1)
