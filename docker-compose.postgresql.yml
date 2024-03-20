@@ -45,7 +45,6 @@ services:
     hostname: pgpool
     environment:
       - PGPOOL_BACKEND_NODES=${PGPOOL_BACKEND_NODES:-1:pg-1:5432,2:pg-2:5432}
-      - PGPOOL_BACKEND_APPLICATION_NAMES=${PGPOOL_BACKEND_APPLICATION_NAMES:-pg-1,pg-2}
       - PGPOOL_SR_CHECK_USER=repmgr
       - PGPOOL_SR_CHECK_PASSWORD=repmgrpassword
       - PGPOOL_ENABLE_LDAP=no
