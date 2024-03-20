@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: benchmark/Dockerfile
+    command: dotnet run ShopClient.dll --config nginx_config.prod.json --log access.log
+    volumes:
+      - ./benchmark:/app
