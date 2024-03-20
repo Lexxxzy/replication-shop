@@ -1,8 +1,8 @@
-version: "3"
+version: "3.9"
+
 services:
   redis-master:
     hostname: redis-master
-    container_name: redis-master
     image: bitnami/redis:latest
     environment:
       - REDIS_REPLICATION_MODE=master
@@ -10,7 +10,6 @@ services:
     ports:
       - "6379:6379"
   redis-slave-1:
-    hostname: redis-slave-1
     image: bitnami/redis:latest
     environment:
       - REDIS_REPLICATION_MODE=slave
@@ -19,7 +18,6 @@ services:
     ports:
       - "6380:6379"
   redis-slave-2:
-    hostname: redis-slave-1
     image: bitnami/redis:latest
     environment:
       - REDIS_REPLICATION_MODE=slave
@@ -27,37 +25,30 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6381:6379"
-
   redis-sentinel-1:
-    container_name: sentinel1
     image: bitnami/redis-sentinel:latest
+    hostname: redis-sentinel-1
     environment:
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26379:26379"
   redis-sentinel-2:
-    container_name: sentinel2
     image: bitnami/redis-sentinel:latest
+    hostname: redis-sentinel-2
     environment:
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26380:26379"
   redis-sentinel-3:
-    container_name: sentinel3
     image: bitnami/redis-sentinel:latest
+    hostname: redis-sentinel-3
     environment:
-      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
-      - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PORT_NUMBER=6379
       - REDIS_MASTER_SET=mymaster
-      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26381:26379"
