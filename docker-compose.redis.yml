@@ -6,7 +6,7 @@ services:
     image: bitnami/redis:latest
     environment:
       - REDIS_REPLICATION_MODE=master
-      - REDIS_PASSWORD=redispassword
+      - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6379:6379"
   redis-slave-1:
@@ -14,8 +14,7 @@ services:
     environment:
       - REDIS_REPLICATION_MODE=slave
       - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PASSWORD=redispassword
-      - REDIS_PASSWORD=redispassword
+      - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6380:6379"
   redis-slave-2:
@@ -23,8 +22,7 @@ services:
     environment:
       - REDIS_REPLICATION_MODE=slave
       - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PASSWORD=redispassword
-      - REDIS_PASSWORD=redispassword
+      - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6381:6379"
   redis-sentinel-1:
@@ -33,7 +31,6 @@ services:
     environment:
       - REDIS_MASTER_SET=mymaster
       - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PASSWORD=redispassword
       - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26379:26379"
@@ -43,7 +40,6 @@ services:
     environment:
       - REDIS_MASTER_SET=mymaster
       - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PASSWORD=redispassword
       - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26380:26379"
@@ -53,7 +49,6 @@ services:
     environment:
       - REDIS_MASTER_SET=mymaster
       - REDIS_MASTER_HOST=redis-master
-      - REDIS_MASTER_PASSWORD=redispassword
       - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
     ports:
       - "26381:26379"
