@@ -81,14 +81,11 @@ func GetProductTypeName(productTypeId int) (string, error) {
 func SearchProductByName(name string) ([]Product, error) {
 	var products []Product
 	query := `SELECT id, name, price, manufacturer, product_type_id FROM cassandrakeyspace.products WHERE name = ?`
-	iter := db.CassandraProxy.GetCurrentSession().Query(query, "%"+name+"%").Iter()
+	iter := db.CassandraProxy.GetCurrentSession().Query(query, name).Iter()
 
 	row := make(map[string]interface{})
 
 	for iter.MapScan(row) {
-		if !iter.MapScan(row) {
-			break
-		}
 		productTypeName, err := GetProductTypeName(row["product_type_id"].(int))
 		if err != nil {
 			return nil, err
