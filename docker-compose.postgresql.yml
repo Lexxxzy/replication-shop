@@ -6,8 +6,8 @@ services:
     hostname: pg-1
     volumes:
       - pg_1_data:/bitnami/postgresql
-      - ./dumps:/dumps
       - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
+      - ./db/statements/:/statements
     environment:
       - POSTGRESQL_POSTGRES_PASSWORD=postgres
       - POSTGRESQL_USERNAME=postgres
@@ -27,8 +27,8 @@ services:
     hostname: pg-2
     volumes:
       - pg_2_data:/bitnami/postgresql
-      - ./dumps:/dumps
       - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
+      - ./db/statements/:/statements
     environment:
       - POSTGRESQL_POSTGRES_PASSWORD=postgres
       - POSTGRESQL_USERNAME=postgres

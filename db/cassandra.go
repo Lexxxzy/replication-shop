@@ -33,14 +33,15 @@ func NewCassandraManager(configs []types.CassandraInstance) *CassandraManager {
 func (manager *CassandraManager) connect(index int, config types.CassandraInstance, attempt int) {
 	cluster := gocql.NewCluster(config.IP)
 	cluster.Port = config.Port
+	cluster.DisableInitialHostLookup = true
 	cluster.ProtoVersion = 4
-
+	cluster.Consistency = gocql.LocalQuorum
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Printf("Failed to connect to Cassandra instance at %s:%d, error: %v\n", config.IP, config.Port, err)
-		delay := time.Minute
+		delay := time.Second * 10
 		if attempt == 1 {
-			delay = time.Hour
+			delay *= 2
 		}
 		time.AfterFunc(delay, func() {
 			manager.connect(index, config, attempt+1)
@@ -72,6 +73,5 @@ func InitCassandra(configPath string) error {
 		return fmt.Errorf("error loading Cassandra configuration: %v", err)
 	}
 	CassandraProxy = NewCassandraManager(config.CassandraInstances)
-
 	return nil
 }

@@ -46,9 +46,9 @@ func (manager *RedisSentinelManager) connect(index int, config types.RedisSentin
 	})
 	if _, err := rdb.Ping(ctx).Result(); err != nil {
 		log.Printf("Failed to connect to Redis Sentinel at %v, error: %v\n", config.SentinelAddrs, err)
-		delay := time.Minute
+		delay := time.Second * 10
 		if attempt == 1 {
-			delay = time.Hour
+			delay *= 2
 		}
 		time.AfterFunc(delay, func() {
 			manager.connect(index, config, attempt+1)

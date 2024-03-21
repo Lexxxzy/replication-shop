@@ -28,15 +28,21 @@ docker compose -f docker-compose.app.yml up -d --build
 Start all:
 
 ```bash
- docker compose \
+docker compose \
  -f docker-compose.app.yml \
- -f docker-compose.postgresql.yml 
+ -f docker-compose.postgresql.yml \
  -f docker-compose.redis.yml \
  -f docker-compose.cassandra.yml \
  up -d --build
 ```
 
 Access the application at `http://localhost:80`
+
+### Run a load test
+
+```bash
+bash scrips/benchmark.sh
+```
 
 Start golang API without docker for development:
 :warning: Make sure you have `go` installed on your machine.
@@ -52,7 +58,6 @@ curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh
 ```bash
 cp .env dev.env
 ```
-
 3. Run the following commands:
 
 ```bash

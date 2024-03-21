@@ -42,9 +42,9 @@ func (manager *PostgresqlManager) connect(index int, config types.PgPoolInstance
 	bunDB := bun.NewDB(db, pgdialect.New())
 	if err := db.Ping(); err != nil {
 		log.Printf("Failed to connect to database instance at %s:%d, error: %v\n", config.IP, config.Port, err)
-		delay := time.Minute
+		delay := time.Second * 10
 		if attempt == 1 {
-			delay = time.Hour
+			delay *= 2
 		}
 		time.AfterFunc(delay, func() {
 			manager.connect(index, config, attempt+1)
