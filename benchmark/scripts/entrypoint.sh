@@ -3,7 +3,7 @@
 
 LOG_DIR=${LOG_DIR:-./"$LOG_DIR_PREFIX"logs/}
 
-rm -rf "$LOG_DIR"
+rm -rf "$LOG_DIR" &> /dev/null
 
 mkdir -p "$LOG_DIR"
 
