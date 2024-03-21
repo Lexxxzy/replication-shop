@@ -17,3 +17,6 @@ CREATE TABLE IF NOT EXISTS products
     manufacturer    text,
     product_type_id int
 );
+
+CREATE INDEX ON products (name);
+

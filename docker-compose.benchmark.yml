@@ -6,5 +6,6 @@ services:
       context: .
       dockerfile: benchmark/Dockerfile
     command: /bin/sh scripts/entrypoint.sh
+    restart: no
     volumes:
       - ./benchmark/logs:/app/logs
