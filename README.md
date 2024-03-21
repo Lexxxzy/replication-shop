@@ -28,7 +28,7 @@ docker compose -f docker-compose.app.yml up -d --build
 Start all:
 
 ```bash
- docker compose \
+docker compose \
  -f docker-compose.app.yml \
  -f docker-compose.postgresql.yml \
  -f docker-compose.redis.yml \

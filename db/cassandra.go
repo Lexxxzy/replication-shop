@@ -39,9 +39,9 @@ func (manager *CassandraManager) connect(index int, config types.CassandraInstan
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Printf("Failed to connect to Cassandra instance at %s:%d, error: %v\n", config.IP, config.Port, err)
-		delay := time.Minute
+		delay := time.Second * 10
 		if attempt == 1 {
-			delay = time.Minute * 2
+			delay *= 2
 		}
 		time.AfterFunc(delay, func() {
 			manager.connect(index, config, attempt+1)
