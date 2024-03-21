@@ -1,23 +1,23 @@
 [[pgpool_instance]]
-ip = "host.docker.internal"
+ip = "localhost"
 port = 6432
 
 [[pgpool_instance]]
-ip = "host.docker.internal"
+ip = "localhost"
 port = 6433
 
 [[redis_sentinel_instance]]
 master_name = "mymaster"
-sentinel_addrs = ["host.docker.internal:26379", "host.docker.internal:26380", "host.docker.internal:26381"]
+sentinel_addrs = ["localhost:26379", "localhost:26380", "localhost:26381"]
 
 [[cassandra_instance]]
-ip = "host.docker.internal"
+ip = "localhost"
 port = 9042
 
 [[cassandra_instance]]
-ip = "host.docker.internal"
+ip = "localhost"
 port = 9043
 
 [[cassandra_instance]]
-ip = "host.docker.internal"
+ip = "localhost"
 port = 9044

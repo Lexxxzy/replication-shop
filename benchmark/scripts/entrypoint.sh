@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-LOG_DIR=${LOG_DIR:-./logs/}
+LOG_DIR=${LOG_DIR:-./"$LOG_DIR_PREFIX"logs/}
 
 rm -rf "$LOG_DIR"
 

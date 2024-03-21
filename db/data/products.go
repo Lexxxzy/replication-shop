@@ -1,7 +1,7 @@
 package data
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
 	"github.com/Lexxxzy/go-echo-template/db"
 	"github.com/gocql/gocql"
@@ -11,10 +11,10 @@ import (
 )
 
 type Product struct {
-	ID           int     `bun:"type:int,pk" json:"id"`
-	Name         string  `bun:"type:char(128),notnull" json:"name"`
-	Price        float64 `bun:"type:decimal(10,2),notnull" json:"price"`
-	Manufacturer string  `bun:"type:char(64)" json:"manufacturer"`
+	ID           int     `cql:"id" json:"id"`
+	Name         string  `cql:"name" json:"name"`
+	Price        float64 `cql:"price" json:"price"`
+	Manufacturer string  `cql:"manufacturer" json:"manufacturer"`
 	TypeName     string  `json:"type_name"`
 }
 
@@ -35,27 +35,26 @@ type Order struct {
 
 func GetAllProducts() ([]Product, error) {
 	var products []Product
-	iter := db.CassandraProxy.GetCurrentSession().Query("SELECT id, name, price, manufacturer, type_name FROM products").Iter()
 
-	var (
-		id           int
-		name         string
-		price        float64
-		manufacturer string
-		typeName     string
-	)
+	iter := db.CassandraProxy.GetCurrentSession().Query(`SELECT id, manufacturer, name, price, product_type_id FROM cassandrakeyspace.products`).Iter()
 
-	for iter.Scan(&id, &name, &price, &manufacturer, &typeName) {
+	row := make(map[string]interface{})
+
+	for iter.MapScan(row) {
+		productTypeName, err := GetProductTypeName(row["product_type_id"].(int))
+		if err != nil {
+			return nil, err
+		}
 		product := Product{
-			ID:           id,
-			Name:         name,
-			Price:        price,
-			Manufacturer: manufacturer,
-			TypeName:     typeName,
+			ID:           row["id"].(int),
+			Name:         row["name"].(string),
+			Price:        float64(row["price"].(float32)),
+			Manufacturer: row["manufacturer"].(string),
+			TypeName:     productTypeName,
 		}
 		products = append(products, product)
+		row = make(map[string]interface{})
 	}
-
 	if err := iter.Close(); err != nil {
 		log.Error("Error fetching all products: ", err)
 		return nil, err
@@ -64,59 +63,73 @@ func GetAllProducts() ([]Product, error) {
 	return products, nil
 }
 
-func SearchProductByName(name string) ([]Product, error) {
-	var products []Product
-	iter := db.CassandraProxy.GetCurrentSession().Query("SELECT id, name, price, manufacturer, type_name FROM products WHERE name LIKE ?", "%"+name+"%").Iter()
+func GetProductTypeName(productTypeId int) (string, error) {
+	var name string
 
-	var (
-		id           int
-		price        float64
-		manufacturer string
-		typeName     string
-	)
+	query := `SELECT name FROM cassandrakeyspace.product_types WHERE id = ?`
+	iter := db.CassandraProxy.GetCurrentSession().Query(query, productTypeId).Iter()
 
-	for iter.Scan(&id, &name, &price, &manufacturer, &typeName) {
-		product := Product{
-			ID:           id,
-			Name:         name,
-			Price:        price,
-			Manufacturer: manufacturer,
-			TypeName:     typeName,
-		}
-		products = append(products, product)
+	if iter.Scan(&name) {
+		return name, nil
+	} else if err := iter.Close(); err != nil {
+		return "", err
 	}
 
+	return "", gocql.ErrNotFound
+}
+
+func SearchProductByName(name string) ([]Product, error) {
+	var products []Product
+	query := `SELECT id, name, price, manufacturer, product_type_id FROM cassandrakeyspace.products WHERE name ILIKE ?`
+	iter := db.CassandraProxy.GetCurrentSession().Query(query, "%"+name+"%").Iter()
+
+	row := make(map[string]interface{})
+
+	for iter.MapScan(row) {
+		if !iter.MapScan(row) {
+			break
+		}
+		productTypeName, err := GetProductTypeName(row["product_type_id"].(int))
+		if err != nil {
+			return nil, err
+		}
+		product := Product{
+			ID:           row["id"].(int),
+			Name:         row["name"].(string),
+			Price:        float64(row["price"].(float32)),
+			Manufacturer: row["manufacturer"].(string),
+			TypeName:     productTypeName,
+		}
+		products = append(products, product)
+		row = make(map[string]interface{})
+	}
 	if err := iter.Close(); err != nil {
 		log.Error("Error searching product by name: ", err)
 		return nil, err
 	}
-
 	return products, nil
 }
 
 func GetCartItems(userID string) ([]CartItem, error) {
 	var cartItems []CartItem
-	iter := db.CassandraProxy.GetCurrentSession().Query("SELECT product_id, product, price, quantity FROM cart_items WHERE user_id = ?", userID).Iter()
 
-	var (
-		productID int
-		product   string
-		price     float64
-		quantity  int
-	)
+	query := `
+        SELECT p.id, p.name, p.price, ci.quantity
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        JOIN cart c ON ci.cart_id = c.id
+        JOIN product_types pt ON p.product_type_id = pt.id
+        WHERE c.user_id = ?
+    `
 
-	for iter.Scan(&productID, &product, &price, &quantity) {
-		cartItem := CartItem{
-			ProductID: productID,
-			Product:   product,
-			Price:     price,
-			Quantity:  quantity,
-		}
-		cartItems = append(cartItems, cartItem)
-	}
-
-	if err := iter.Close(); err != nil {
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, userID)
+	if err != nil {
 		log.Error("Error fetching cart items: ", err)
+		return nil, err
+	}
+	defer rows.Close()
+	cartItems, err = MapRowsToCartItems(rows)
+	if err != nil {
 		return nil, err
 	}
 
@@ -124,35 +137,44 @@ func GetCartItems(userID string) ([]CartItem, error) {
 }
 
 func AddProductToCart(userID string, productID int, quantity int) error {
-	// Start a new session
-	session := db.CassandraProxy.GetCurrentSession()
-
-	// Check if the cart exists for the user
-	var cartID int
-	err := session.Query("SELECT id FROM carts WHERE user_id = ?", userID).Scan(&cartID)
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
-		// If cart does not exist, create a new one
-		err = session.Query("INSERT INTO carts (user_id) VALUES (?)", userID).Exec()
+		log.Error("Error starting transaction: ", err)
+		return err
+	}
+	defer tx.Rollback()
+
+	var cartID int
+	// Попытка найти существующую корзину для пользователя
+	cartQuery := `SELECT id FROM cart WHERE user_id = ?`
+	err = tx.QueryRow(cartQuery, userID).Scan(&cartID)
+	if err != nil {
+		// Если корзина не найдена, создаем новую
+		insertCartQuery := `INSERT INTO cart (user_id) VALUES (?) RETURNING id`
+		err = tx.QueryRow(insertCartQuery, userID).Scan(&cartID)
 		if err != nil {
 			log.Error("Error creating a new cart: ", err)
 			return err
 		}
-		// Retrieve the newly created cart ID
-		err = session.Query("SELECT id FROM carts WHERE user_id = ?", userID).Scan(&cartID)
-		if err != nil {
-			log.Error("Error retrieving cart ID: ", err)
-			return err
-		}
 	}
 
-	// Add or update the product quantity in the cart
-	err = session.Query(`
+	// Попытка добавить товар в корзину или обновить его количество, если он уже там есть
+	updateQuery := `
         INSERT INTO cart_items (cart_id, product_id, quantity)
         VALUES (?, ?, ?)
-        IF NOT EXISTS
-    `, cartID, productID, quantity).Exec()
+        ON CONFLICT (cart_id, product_id)
+        DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity
+	`
+
+	_, err = tx.Exec(updateQuery, cartID, productID, quantity)
 	if err != nil {
-		log.Error("Error adding product to cart: ", err)
+		log.Error("Error adding/updating product in cart: ", err)
+		return err
+	}
+
+	// Если дошли до сюда без ошибок, подтверждаем транзакцию
+	if err = tx.Commit(); err != nil {
+		log.Error("Error committing transaction: ", err)
 		return err
 	}
 
@@ -160,37 +182,41 @@ func AddProductToCart(userID string, productID int, quantity int) error {
 }
 
 func RemoveProductFromCart(userID string, productID int) error {
-	// Start a new session
-	session := db.CassandraProxy.GetCurrentSession()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
+	if err != nil {
+		log.Error("Error starting transaction: ", err)
+		return err
+	}
+	defer tx.Rollback()
 
-	// Fetch the cart ID for the user
 	var cartID int
-	err := session.Query("SELECT id FROM carts WHERE user_id = ?", userID).Scan(&cartID)
+	// Попытка найти существующую корзину для пользователя
+	cartQuery := `SELECT id FROM cart WHERE user_id = ?`
+	err = tx.QueryRow(cartQuery, userID).Scan(&cartID)
 	if err != nil {
 		log.Error("Error fetching cart: ", err)
 		return err
 	}
 
-	// Decrease the quantity of the product in the cart by 1
-	updateQuantity := `
-        UPDATE cart_items SET quantity = quantity - 1
-        WHERE cart_id = ? AND product_id = ?
-        IF quantity > 0
-    `
-	err = session.Query(updateQuantity, cartID, productID).Exec()
+	// Уменьшаем количество товара в корзине на 1
+	updateQuantity := `UPDATE cart_items SET quantity = quantity - 1 WHERE cart_id = ? AND product_id = ? RETURNING quantity`
+	_, err = tx.Exec(updateQuantity, cartID, productID)
 	if err != nil {
-		log.Error("Error updating product quantity in cart: ", err)
+		log.Error("Error deleting product from cart: ", err)
 		return err
 	}
 
-	// Remove the product from the cart if its quantity becomes 0
-	deleteQuery := `
-        DELETE FROM cart_items
-        WHERE cart_id = ? AND product_id = ? IF EXISTS
-    `
-	err = session.Query(deleteQuery, cartID, productID).Exec()
+	// Удаляем товар из корзины, если его количество стало равно 0
+	deleteQuery := `DELETE FROM cart_items WHERE quantity = 0`
+	_, err = tx.Exec(deleteQuery, cartID, productID)
 	if err != nil {
 		log.Error("Error deleting product from cart: ", err)
+		return err
+	}
+
+	// Если дошли до сюда без ошибок, подтверждаем транзакцию
+	if err = tx.Commit(); err != nil {
+		log.Error("Error committing transaction: ", err)
 		return err
 	}
 
@@ -198,30 +224,35 @@ func RemoveProductFromCart(userID string, productID int) error {
 }
 
 func GetOrders(userID string) ([]Order, error) {
-	// Start a new session
-	session := db.CassandraProxy.GetCurrentSession()
-
-	// Fetch orders for the user
 	var orders []Order
-	iter := session.Query(`
-        SELECT id, delivery_address, order_date
-        FROM orders
-        WHERE user_id = ?
-    `, userID).Iter()
+	query := `
+	SELECT o.id, o.delivery_address, o.order_date 
+	FROM orders o
+	WHERE user_id = ?
+    `
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, userID)
+	if err != nil {
+		log.Error("Error fetching orders: ", err)
+		return nil, err
+	}
+	defer rows.Close()
 
-	for iter.Scan() {
+	for rows.Next() {
 		var order Order
-		if err := iter.Scan(&order.ID, &order.DeliveryAddress, &order.OrderDate); err != true {
-			log.Error("Error scanning order: ", err)
-			return nil, nil
-		}
+		err := rows.Scan(&order.ID, &order.DeliveryAddress, &order.OrderDate)
 
 		order.DeliveryAddress = strings.TrimSpace(order.DeliveryAddress)
 
-		// Fetch order items for the order
-		order.CartItems, _ = GetOrderItems(order.ID)
+		if err != nil {
+			log.Error("Error scanning order: ", err)
+			return nil, err
+		}
 
-		// Calculate total price for the order
+		order.CartItems, err = GetOrderItems(order.ID)
+		if err != nil {
+			return nil, err
+		}
+
 		totalPrice := 0.0
 		for _, item := range order.CartItems {
 			totalPrice += item.Price * float64(item.Quantity)
@@ -231,8 +262,8 @@ func GetOrders(userID string) ([]Order, error) {
 		orders = append(orders, order)
 	}
 
-	if err := iter.Close(); err != nil {
-		log.Error("Error closing iterator: ", err)
+	if err := rows.Err(); err != nil {
+		log.Error("Error iterating rows: ", err)
 		return nil, err
 	}
 
@@ -240,28 +271,21 @@ func GetOrders(userID string) ([]Order, error) {
 }
 
 func GetOrderItems(orderID int) ([]CartItem, error) {
-	// Start a new session
-	session := db.CassandraProxy.GetCurrentSession()
-
-	// Fetch order items for the given order ID
 	var cartItems []CartItem
-	iter := session.Query(`
-        SELECT product_id, name, price, quantity
-        FROM order_items
-        WHERE order_id = ?
-    `, orderID).Iter()
-
-	for iter.Scan() {
-		var cartItem CartItem
-		if err := iter.Scan(&cartItem.ProductID, &cartItem.Product, &cartItem.Price, &cartItem.Quantity); err != true {
-			log.Error("Error scanning order item: ", err)
-			return nil, nil
-		}
-		cartItems = append(cartItems, cartItem)
+	query := `
+	SELECT p.id, p.name, p.price, oi.quantity
+	FROM order_items oi
+	JOIN products p ON oi.product_id = p.id
+	WHERE oi.order_id = ?
+    `
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, orderID)
+	if err != nil {
+		log.Error("Error fetching order items: ", err)
+		return nil, err
 	}
-
-	if err := iter.Close(); err != nil {
-		log.Error("Error closing iterator: ", err)
+	defer rows.Close()
+	cartItems, err = MapRowsToCartItems(rows)
+	if err != nil {
 		return nil, err
 	}
 
@@ -269,129 +293,170 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 }
 
 func PlaceOrder(userID string, deliveryAddress string) (int, int, error) {
-	// Start a new session
-	session := db.CassandraProxy.GetCurrentSession()
-
-	// Generate a unique order ID (if required, depending on your schema)
-	orderID := generateUniqueOrderID()
-
-	// Step 1: Create order
-	err := createOrder(session, orderID, userID, deliveryAddress)
+	// Начало транзакции
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
+		log.Error("Error starting transaction: ", err)
+		return http.StatusInternalServerError, 0, fmt.Errorf("error starting transaction")
+	}
+
+	// Шаг 1: Создание заказа
+	var orderID int
+	orderQuery := `
+        INSERT INTO orders (user_id, delivery_address, order_date)
+        VALUES (?, ?, NOW())
+        RETURNING id
+    `
+	err = tx.QueryRow(orderQuery, userID, deliveryAddress, userID).Scan(&orderID)
+	if err != nil {
+		tx.Rollback()
+		log.Error("Error creating order: ", err)
 		return http.StatusInternalServerError, orderID, fmt.Errorf("error creating order, please try again later")
 	}
 
-	// Step 2: Copy cart items to order items
-	err = copyCartItemsToOrder(session, orderID, userID)
+	// Проверка, что корзина не пуста
+	emptyCartQuery := `SELECT COUNT(*) FROM cart_items WHERE cart_id IN (SELECT id FROM cart WHERE user_id = ?)`
+	var cartItemCount int
+	err = tx.QueryRow(emptyCartQuery, userID).Scan(&cartItemCount)
+	if err != nil || cartItemCount == 0 {
+		tx.Rollback()
+		log.Error("Error checking cart items: ", err)
+		return http.StatusBadRequest, orderID, fmt.Errorf("cart is empty")
+	}
+
+	// Шаг 2: Копирование содержимого корзины в заказ
+	copyQuery := `
+        INSERT INTO order_items (order_id, product_id, quantity, price_at_order)
+        SELECT ?, ci.product_id, ci.quantity, p.price
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        JOIN cart c ON ci.cart_id = c.id
+        WHERE c.user_id = ?
+    `
+	_, err = tx.Exec(copyQuery, orderID, userID)
 	if err != nil {
+		tx.Rollback()
+		log.Error("Error copying cart items to order items: ", err)
 		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
-	// Step 3: Clear cart
-	err = clearCart(session, userID)
+	// Шаг 3: Очистка корзины
+	clearCartQuery := `
+        DELETE FROM cart_items
+        WHERE cart_id IN (
+            SELECT id FROM cart WHERE user_id = ?
+        )
+    `
+	_, err = tx.Exec(clearCartQuery, userID)
 	if err != nil {
+		tx.Rollback()
+		log.Error("Error clearing cart: ", err)
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
+	}
+
+	// Завершение транзакции
+	err = tx.Commit()
+	if err != nil {
+		log.Error("Error committing transaction: ", err)
 		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
 	return http.StatusOK, orderID, nil
 }
 
-func createOrder(session *gocql.Session, orderID int, userID string, deliveryAddress string) error {
-	// Insert order data into orders table
-	err := session.Query(`
-        INSERT INTO orders (id, user_id, delivery_address, order_date)
-        VALUES (?, ?, ?, toTimestamp(now()))
-    `, orderID, userID, deliveryAddress).Exec()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func copyCartItemsToOrder(session *gocql.Session, orderID int, userID string) error {
-	// Select cart items for the user
-	iter := session.Query(`
-        SELECT product_id, quantity
-        FROM cart_items
-        WHERE user_id = ?
-    `, userID).Iter()
-
-	// Iterate over cart items and insert into order_items table
-	for iter.Scan() {
-		var productID, quantity int
-		if err := iter.Scan(&productID, &quantity); err != true {
-			return nil
-		}
-		if err := insertOrderItem(session, orderID, productID, quantity); err != nil {
-			return err
-		}
-	}
-	if err := iter.Close(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func insertOrderItem(session *gocql.Session, orderID int, productID int, quantity int) error {
-	// Insert order item data into order_items table
-	err := session.Query(`
-        INSERT INTO order_items (order_id, product_id, quantity)
-        VALUES (?, ?, ?)
-    `, orderID, productID, quantity).Exec()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func clearCart(session *gocql.Session, userID string) error {
-	// Delete cart items for the user
-	err := session.Query(`
-        DELETE FROM cart_items
-        WHERE user_id = ?
-    `, userID).Exec()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// This function generates a unique order ID according to your application's logic
-func generateUniqueOrderID() int {
-	// Implement your logic to generate a unique order ID
-	return 0 // Placeholder implementation
-}
-
 func CancelOrder(userID string, orderID int) (int, error) {
-	// Step 0: Check if the order exists and belongs to the user
-	var ownerID string
-	ownerQuery := "SELECT user_id FROM orders WHERE id = ?"
-	err := db.CassandraProxy.GetCurrentSession().Query(ownerQuery, orderID).Scan(&ownerID)
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
-		if errors.Is(err, gocql.ErrNotFound) {
-			return http.StatusNotFound, fmt.Errorf("order not found")
-		}
-		log.Printf("Error fetching order owner: %s", err)
+		log.Error("Error starting transaction: ", err)
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
-
-	if ownerID != userID {
+	// Шаг 0: Проверка, что заказ принадлежит пользователю
+	var ownerID string
+	ownerQuery := `SELECT user_id FROM orders WHERE id = ?`
+	err = tx.QueryRow(ownerQuery, orderID).Scan(&ownerID)
+	if ownerID == "" || ownerID != userID {
+		tx.Rollback()
 		return http.StatusNotFound, fmt.Errorf("order not found")
 	}
 
-	// Step 1: Delete order items associated with the order
-	deleteOrderItemsQuery := "DELETE FROM order_items WHERE order_id = ?"
-	if err := db.CassandraProxy.GetCurrentSession().Query(deleteOrderItemsQuery, orderID).Exec(); err != nil {
-		log.Printf("Error deleting order items: %s", err)
+	if err != nil {
+		tx.Rollback()
+		log.Error("Error fetching order owner: ", err)
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
-	// Step 2: Delete the order if it belongs to the user
-	deleteOrderQuery := "DELETE FROM orders WHERE id = ? AND user_id = ?"
-	if err := db.CassandraProxy.GetCurrentSession().Query(deleteOrderQuery, orderID, userID).Exec(); err != nil {
-		log.Printf("Error deleting order: %s", err)
+	// Шаг 1: Удаление содержимого заказа
+	deleteOrderItemsQuery := `DELETE FROM order_items WHERE order_id = ?`
+	_, err = tx.Exec(deleteOrderItemsQuery, orderID)
+	if err != nil {
+		tx.Rollback()
+		log.Error("Error deleting order items: ", err)
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
+	}
+
+	// Шаг 2: Удаление заказа
+	deleteOrderQuery := `DELETE FROM orders WHERE id = ? AND user_id = ?`
+	_, err = tx.Exec(deleteOrderQuery, orderID, userID)
+	if err != nil {
+		tx.Rollback()
+		log.Error("Error deleting order: ", err)
+		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
+	}
+
+	// Завершение транзакции
+	err = tx.Commit()
+	if err != nil {
+		log.Error("Error committing transaction: ", err)
 		return http.StatusInternalServerError, fmt.Errorf("error cancelling order, please try again later")
 	}
 
 	return http.StatusOK, nil
+}
+
+func MapRowsToProducts(rows *sql.Rows) ([]Product, error) {
+	var products []Product
+	for rows.Next() {
+		var product Product
+		err := rows.Scan(&product.ID, &product.Name, &product.Price, &product.Manufacturer, &product.TypeName)
+
+		product.Name = strings.TrimSpace(product.Name)
+		product.Manufacturer = strings.TrimSpace(product.Manufacturer)
+		product.TypeName = strings.TrimSpace(product.TypeName)
+
+		if err != nil {
+			log.Error("Error scanning product: ", err)
+			return nil, err
+		}
+		products = append(products, product)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Error("Error iterating rows: ", err)
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func MapRowsToCartItems(rows *sql.Rows) ([]CartItem, error) {
+	var cartItems []CartItem
+	for rows.Next() {
+		var cartItem CartItem
+		err := rows.Scan(&cartItem.ProductID, &cartItem.Product, &cartItem.Price, &cartItem.Quantity)
+
+		cartItem.Product = strings.TrimSpace(cartItem.Product)
+
+		if err != nil {
+			log.Error("Error scanning cart item: ", err)
+			return nil, err
+		}
+		cartItems = append(cartItems, cartItem)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Error("Error iterating rows: ", err)
+		return nil, err
+	}
+
+	return cartItems, nil
 }

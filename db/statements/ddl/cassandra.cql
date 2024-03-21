@@ -1,5 +1,5 @@
 CREATE KEYSPACE IF NOT EXISTS cassandrakeyspace
-            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+    WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3};
 
 USE cassandrakeyspace;
 
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS products
 (
     id              int PRIMARY KEY,
     name            text,
-    price           decimal,
+    price           float,
     manufacturer    text,
     product_type_id int
 );
