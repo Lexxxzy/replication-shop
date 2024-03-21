@@ -38,6 +38,12 @@ Start all:
 
 Access the application at `http://localhost:80`
 
+### Run a load test
+
+```bash
+bash scrips/benchmark.sh
+```
+
 Start golang API without docker for development:
 :warning: Make sure you have `go` installed on your machine.
 
@@ -52,7 +58,6 @@ curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh
 ```bash
 cp .env dev.env
 ```
-
 3. Run the following commands:
 
 ```bash
