@@ -25,7 +25,6 @@ while (true)
         Console.WriteLine("Using client: " + client.BaseAddress);
 
         await SpawnUserAndMakeRequests(client, rnd);
-
         clients.Enqueue(client);
     }
     catch (OperationCanceledException)
@@ -45,20 +44,31 @@ async Task SpawnUserAndMakeRequests(HttpClient httpClient, Random random)
     {
         var user = new User();
         user.SetLogger(logger);
+        Console.WriteLine("Registering");
 
         await user.RegisterUserAsync(httpClient);
+        Console.WriteLine("Loging in");
         await user.LoginUserAsync(httpClient);
-
+        Console.WriteLine("Getting products");
         var products = (await user.GetAllProductsAsync(httpClient)).ToList();
         // NOTE: Add random number of products to cart (from 4 to 100 -> can add same products multiple times)
         for (int i = 0; i < random.Next(4, 50); i++)
         {
-            var product = await user.GetProductAsync(httpClient, products[random.Next(0, products.Count)].Name);
-            await user.AddProductToCartAsync(httpClient, product.Id);
+            try
+            {
+                var product = await user.GetProductAsync(httpClient, products[random.Next(0, products.Count)].Name);
+                await user.AddProductToCartAsync(httpClient, product.Id);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Cannot find product, skipping...");
+            }
         }
-
+        
+        Console.WriteLine("Getting cart");
         var cart = await user.GetCartAsync(httpClient);
-
+        
+        Console.WriteLine("Remocing from cart");
         // NOTE: Remove random number of products from cart
         // TASK: Предположение: модель пользователя-шопоголика подразумевает “муки выбора” и частое изменение корзины.
         var randomNumberOfIdsToDelete = GetRandomNumberOfIds(cart);
@@ -66,19 +76,22 @@ async Task SpawnUserAndMakeRequests(HttpClient httpClient, Random random)
         {
             await user.RemoveProductFromCartAsync(httpClient, id);
         }
-
+        
+        Console.WriteLine("Placing order");
         // NOTE: Place order
         var orderId = await user.AddOrderAsync(httpClient, user.DeliveryAddress);
         await user.GetOrderAsync(httpClient);
-
+        
+        Console.WriteLine("Canceling order");
         // NOTE: Cancel order with 50% chance
         if (random.NextDouble() > 0.5)
         {
             await user.CancelOrderAsync(httpClient, orderId);
         }
-
+        Console.WriteLine("Logout ");
         // NOTE: Logout user to clear session from backend
         await user.LogoutUserAsync(httpClient);
+        Console.WriteLine("Exiting");
     }
     
     static List<int> GetRandomNumberOfIds(List<CartItem> cartItems)
