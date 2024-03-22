@@ -4,17 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Lexxxzy/go-echo-template/db"
-	"github.com/gocql/gocql"
 	"github.com/labstack/gommon/log"
 	"net/http"
 	"strings"
 )
 
 type Product struct {
-	ID           int     `cql:"id" json:"id"`
-	Name         string  `cql:"name" json:"name"`
-	Price        float64 `cql:"price" json:"price"`
-	Manufacturer string  `cql:"manufacturer" json:"manufacturer"`
+	ID           int     `bun:"type:int,pk" json:"id"`
+	Name         string  `bun:"type:char(128),notnull" json:"name"`
+	Price        float64 `bun:"type:decimal(10,2),notnull" json:"price"`
+	Manufacturer string  `bun:"type:char(64)" json:"manufacturer"`
 	TypeName     string  `json:"type_name"`
 }
 
@@ -36,74 +35,37 @@ type Order struct {
 func GetAllProducts() ([]Product, error) {
 	var products []Product
 
-	iter := db.CassandraProxy.GetCurrentSession().Query(`SELECT id, manufacturer, name, price, product_type_id FROM cassandrakeyspace.products`).Iter()
+	query := "SELECT p.id, p.name, p.price, p.manufacturer, pt.name as type_name FROM products p JOIN product_types pt ON p.product_type_id = pt.id"
 
-	row := make(map[string]interface{})
-
-	for iter.MapScan(row) {
-		productTypeName, err := GetProductTypeName(row["product_type_id"].(int))
-		if err != nil {
-			return nil, err
-		}
-		product := Product{
-			ID:           row["id"].(int),
-			Name:         row["name"].(string),
-			Price:        float64(row["price"].(float32)),
-			Manufacturer: row["manufacturer"].(string),
-			TypeName:     productTypeName,
-		}
-		products = append(products, product)
-		row = make(map[string]interface{})
-	}
-	if err := iter.Close(); err != nil {
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query)
+	if err != nil {
 		log.Error("Error fetching all products: ", err)
+		return nil, err
+	}
+	defer rows.Close()
+	products, err = MapRowsToProducts(rows)
+	if err != nil {
 		return nil, err
 	}
 
 	return products, nil
 }
 
-func GetProductTypeName(productTypeId int) (string, error) {
-	var name string
-
-	query := `SELECT name FROM cassandrakeyspace.product_types WHERE id = ?`
-	iter := db.CassandraProxy.GetCurrentSession().Query(query, productTypeId).Iter()
-
-	if iter.Scan(&name) {
-		return name, nil
-	} else if err := iter.Close(); err != nil {
-		return "", err
-	}
-
-	return "", gocql.ErrNotFound
-}
-
 func SearchProductByName(name string) ([]Product, error) {
 	var products []Product
-	query := `SELECT id, name, price, manufacturer, product_type_id FROM cassandrakeyspace.products WHERE name = ?`
-	iter := db.CassandraProxy.GetCurrentSession().Query(query, name).Iter()
+	query := "SELECT id, name, price, manufacturer, product_type_id FROM products WHERE name ILIKE ?"
 
-	row := make(map[string]interface{})
-
-	for iter.MapScan(row) {
-		productTypeName, err := GetProductTypeName(row["product_type_id"].(int))
-		if err != nil {
-			return nil, err
-		}
-		product := Product{
-			ID:           row["id"].(int),
-			Name:         row["name"].(string),
-			Price:        float64(row["price"].(float32)),
-			Manufacturer: row["manufacturer"].(string),
-			TypeName:     productTypeName,
-		}
-		products = append(products, product)
-		row = make(map[string]interface{})
-	}
-	if err := iter.Close(); err != nil {
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, "%"+name+"%")
+	if err != nil {
 		log.Error("Error searching product by name: ", err)
 		return nil, err
 	}
+	defer rows.Close()
+	products, err = MapRowsToProducts(rows)
+	if err != nil {
+		return nil, err
+	}
+
 	return products, nil
 }
 
