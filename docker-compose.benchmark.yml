@@ -2,10 +2,10 @@ version: "3.9"
 
 services:
   benchmark:
+    image: replication-shop-benchmark:latest
     build:
       context: .
       dockerfile: benchmark/Dockerfile
-    command: ./scripts/entrypoint.sh
     restart: no
     environment:
       - LOG_FILE_PREFIX
