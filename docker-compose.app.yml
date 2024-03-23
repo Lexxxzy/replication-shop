@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   app-1:
-    image: replication-shop-app:latest
+    image: replication-shop-app${BRANCH:-}:latest
     build: .
     restart: on-failure
     env_file:
@@ -15,7 +15,7 @@ services:
     ports:
       - "8000"
   app-2:
-    image: replication-shop-app:latest
+    image: replication-shop-app${BRANCH:-}:latest
     build: .
     restart: on-failure
     env_file:
@@ -28,7 +28,7 @@ services:
     ports:
       - "8000"
   app-3:
-    image: replication-shop-app:latest
+    image: replication-shop-app${BRANCH:-}:latest
     build: .
     restart: on-failure
     env_file:

@@ -10,5 +10,3 @@ services:
     environment:
       - LOG_FILE_PREFIX
       - EXIT_AFTER_TIMEOUT=${EXIT_AFTER_TIMEOUT:-120}
-    volumes:
-      - ./benchmark/logs:/app/logs
