@@ -11,3 +11,5 @@ COPY benchmark ./
 RUN dotnet publish -c Release -o out
 
 RUN cp -R out/* ./
+
+CMD ["./scripts/entrypoint.sh"]
