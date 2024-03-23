@@ -45,16 +45,23 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 	}
 
 	configPath := os.Getenv("CONFIG_PATH")
-	if err := db.InitPostgresql(configPath); err != nil {
-		fmt.Printf("error connecting to postgresql: %s", err.Error())
+
+	if postgresqlEnabled := os.Getenv("POSTGRESQL_ENABLED"); postgresqlEnabled == "true" {
+		if err := db.InitPostgresql(configPath); err != nil {
+			fmt.Printf("error connecting to PostgreSQL: %s\n", err.Error())
+		}
 	}
 
-	if err := db.InitRedisSentinel(configPath); err != nil {
-		fmt.Printf("error connecting to redis: %s", err.Error())
+	if redisEnabled := os.Getenv("REDIS_ENABLED"); redisEnabled == "true" {
+		if err := db.InitRedisSentinel(configPath); err != nil {
+			fmt.Printf("error connecting to Redis: %s\n", err.Error())
+		}
 	}
 
-	if err := db.InitCassandra(configPath); err != nil {
-		fmt.Printf("error connecting to cassandra: %s", err.Error())
+	if cassandraEnabled := os.Getenv("CASSANDRA_ENABLED"); cassandraEnabled == "true" {
+		if err := db.InitCassandra(configPath); err != nil {
+			fmt.Printf("error connecting to Cassandra: %s\n", err.Error())
+		}
 	}
 
 	gob.Register(uuid.UUID{})
