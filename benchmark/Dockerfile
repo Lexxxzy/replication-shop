@@ -12,4 +12,6 @@ RUN dotnet publish -c Release -o out
 
 RUN cp -R out/* ./
 
+RUN chmod +x ./scripts/*.sh
+
 CMD ["./scripts/entrypoint.sh"]
