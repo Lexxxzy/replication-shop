@@ -46,15 +46,15 @@ func initializeAppEnvironment() (*echo.Echo, error) {
 
 	configPath := os.Getenv("CONFIG_PATH")
 	if err := db.InitPostgresql(configPath); err != nil {
-		return nil, fmt.Errorf("error connecting to postgresql: %s", err.Error())
+		fmt.Printf("error connecting to postgresql: %s", err.Error())
 	}
 
 	if err := db.InitRedisSentinel(configPath); err != nil {
-		return nil, fmt.Errorf("error connecting to redis: %s", err.Error())
+		fmt.Printf("error connecting to redis: %s", err.Error())
 	}
 
 	if err := db.InitCassandra(configPath); err != nil {
-		return nil, fmt.Errorf("error connecting to cassandra: %s", err.Error())
+		fmt.Printf("error connecting to cassandra: %s", err.Error())
 	}
 
 	gob.Register(uuid.UUID{})
