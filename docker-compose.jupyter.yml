@@ -5,7 +5,15 @@ services:
     image: jupyter/minimal-notebook
     command: start-notebook.sh --NotebookApp.token=e0c2a405d92a6af2e2f1dde4634349a146b62b6b071fa598
     volumes:
-      - ./benchmark_chart:/home/jovyan/benchmark_chart
-      - ./benchmark/logs:/home/jovyan/benchmark_chart/logs
+      - ./benchmark_chart/notebooks:/home/jovyan/work/notebooks
+      - ./benchmark/logs:/home/jovyan/work/logs
     ports:
       - "8888:8888"
+  jupyter-nbconvert:
+    image: jupyter/minimal-notebook
+    command: /scripts/generate-report.sh
+    volumes:
+      - ./benchmark_chart/notebooks:/home/jovyan/work/notebooks
+      - ./benchmark/logs:/home/jovyan/work/logs
+      - ./benchmark_chart/scripts:/scripts
+      - ./benchmark_chart/reports:/home/jovyan/work/reports
