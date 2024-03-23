@@ -88,7 +88,7 @@ for branch_name in "${BRANCHES[@]}"; do
     docker compose -f docker-compose.app.yml up -d
 
   if [ "$need_sleep" == true ]; then
-    SLEEP_SECONDS=$((SLEEP_SECONDS + 60 * 2))
+    SLEEP_SECONDS=$((SLEEP_SECONDS + 60 * 3))
   fi
 
   printf "${YELLOW}Wait for services to start${NC}\n"
