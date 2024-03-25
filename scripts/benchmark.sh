@@ -64,8 +64,13 @@ for branch_name in "${BRANCHES[@]}"; do
     ;;
   esac
 
-  printf "${GREEN}Wait for services %s to start${NC}\n"
-  sleep $((SLEEP_SECONDS))
+  printf "${GREEN}Wait for services to start${NC}\n"
+
+  if [ "$need_sleep" == true ]; then
+    SLEEP_SECONDS=$((SLEEP_SECONDS + 60 * 2))
+  else
+    sleep $((SLEEP_SECONDS))
+  fi
 
   docker compose "${compose_files[@]}" up -d
   BRANCH_WITH_PREFIX=-${branch_name} \
@@ -73,10 +78,6 @@ for branch_name in "${BRANCHES[@]}"; do
     CASSANDRA_ENABLED="$CASSANDRA_ENABLED" \
     REDIS_ENABLED="$REDIS_ENABLED" \
     docker compose -f docker-compose.app.yml up -d
-
-  if [ "$need_sleep" == true ]; then
-    SLEEP_SECONDS=$((SLEEP_SECONDS + 60 * 2))
-  fi
 
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
   sleep $((SLEEP_SECONDS))
