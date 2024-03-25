@@ -20,7 +20,7 @@ func LoginUser(c echo.Context) error {
 	var user data.User
 
 	if err := c.Bind(&user); err != nil {
-		log.Error("Error binding request dumps. User was not logged in.")
+		log.Error("Error binding request dumps. ApiUser was not logged in.")
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
@@ -55,7 +55,7 @@ func Register(c echo.Context) error {
 	var reqdata data.User
 
 	if err := c.Bind(&reqdata); err != nil {
-		log.Error("Error binding request dumps. User was not created. " + err.Error())
+		log.Error("Error binding request dumps. ApiUser was not created. " + err.Error())
 		return util.JsonResponse(c, http.StatusBadRequest, "Invalid request.")
 	}
 
@@ -69,8 +69,8 @@ func Register(c echo.Context) error {
 
 	isExists, _ := data.IsUserExists(addr.Address)
 	if isExists {
-		log.Error("User already exists.")
-		return util.JsonResponse(c, http.StatusBadRequest, "User already exists.")
+		log.Error("ApiUser already exists.")
+		return util.JsonResponse(c, http.StatusBadRequest, "ApiUser already exists.")
 	}
 
 	/* isValid, message := util.IsValidPassword(reqdata.Password)
