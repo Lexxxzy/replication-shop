@@ -12,7 +12,6 @@ text = Text()
 
 class ApiUser(FastHttpUser):
     host = "http://localhost:80"
-    default_headers = {"Content-Type": "application/json"}
     wait_time = between(1, 3)
 
     @task
@@ -21,6 +20,7 @@ class ApiUser(FastHttpUser):
         cart: models.MyCart | None = None
         products: list[models.Product] | None = None
         orders: models.MyOrder | None = None
+        headers = {"Content-Type": "application/json"}
 
         @task
         def register(self):
@@ -54,6 +54,7 @@ class ApiUser(FastHttpUser):
             ) as resp:
                 resp: FastResponse
                 resp.raise_for_status()
+                self.headers.update({"session": resp.headers.get("Set-Cookie")})
 
         @task
         def get_products(self):
@@ -65,7 +66,7 @@ class ApiUser(FastHttpUser):
 
         @task
         def get_cart(self):
-            with self.client.get("/my/cart") as resp:
+            with self.client.get("/my/cart", headers=self.headers) as resp:
                 resp: FastResponse
                 resp.raise_for_status()
                 self.cart = models.MyCart(**resp.json())
@@ -77,18 +78,20 @@ class ApiUser(FastHttpUser):
                 "item_id": product.id,
                 "quantity": random.randint(1, 10),
             }
-            self.client.put("/my/cart/add", json=payload)
+            self.client.put("/my/cart/add", json=payload, headers=self.headers)
             self.get_cart()
 
         @task
         def remove_from_cart(self):
-            payload = {"item_id": self.cart.cart[-1].id}
-            self.client.delete("/my/cart/remove", json=payload)
-            self.get_cart()
+            if self.cart is not None:
+                if self.cart.cart is not None:
+                    payload = {"item_id": self.cart.cart[-1].id}
+                    self.client.delete("/my/cart/remove", json=payload, headers=self.headers)
+                    self.get_cart()
 
         @task
         def get_orders(self):
-            with self.client.get("/my/orders") as resp:
+            with self.client.get("/my/orders", headers=self.headers) as resp:
                 resp: FastResponse
                 resp.raise_for_status()
                 data = resp.json()
@@ -99,12 +102,19 @@ class ApiUser(FastHttpUser):
             self.get_products()
             self.add_to_cart()
             payload = {"delivery_address": text.text()}
-            self.client.post("/my/orders/add", json=payload)
+            self.client.post("/my/orders/add", json=payload, headers=self.headers)
+            self.get_orders()
+
+        @task
+        def cancel_order(self):
+            order: models.Order = random.choice(self.orders.orders)
+            payload = {"order_id": order.id}
+            self.client.delete("/my/orders/cancel", json=payload, headers=self.headers)
             self.get_orders()
 
         @task
         def logout(self):
-            self.client.post("/logout")
+            self.client.post("/logout", headers=self.headers)
             self.cart = None
             self.orders = None
             self.products = None
