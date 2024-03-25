@@ -10,7 +10,7 @@ BENCHMARK_INSTANCES_NUM=${BENCHMARK_INSTANCES_NUM:-6}
 BENCHMARK_OUTPUT_DIR=replication-shop-benchmark/logs
 BENCHMARK_EXIT_AFTER_TIMEOUT=120
 
-SLEEP_SECONDS=180
+SLEEP_SECONDS=65
 
 # Color codes
 RED='\033[0;31m'
@@ -43,9 +43,8 @@ for branch_name in "${BRANCHES[@]}"; do
   printf "${YELLOW}Branch: %s${NC}\n" "$branch_name"
 
   printf "${YELLOW}Building images${NC}\n"
-  BRANCH="-$BRANCH" \
-    docker build "https://github.com/Lexxxzy/replication-shop.git#$branch_name" \
-    -t "replication-shop-app-$branch_name:latest"
+  docker build "https://github.com/Lexxxzy/replication-shop.git#$branch_name" \
+    -t "replication-shop-app-$branch_name"
 
   printf "${YELLOW}Start services${NC}\n"
   compose_files=(-f docker-compose.app.yml)
@@ -53,26 +52,37 @@ for branch_name in "${BRANCHES[@]}"; do
   case "$branch_name" in
   *postgresql*)
     compose_files+=(-f docker-compose.postgresql.yml)
+    export POSTGRESQL_ENABLED=true
+    export CASSANDRA_ENABLED=false
+    export REDIS_ENABLED=false
     ;;
   *cassandra*)
     compose_files+=(-f docker-compose.cassandra.yml)
     need_sleep=true
+    export POSTGRESQL_ENABLED=true
+    export CASSANDRA_ENABLED=true
+    export REDIS_ENABLED=false
     ;;
   *redis*)
     compose_files+=(-f docker-compose.redis.yml)
+    export POSTGRESQL_ENABLED=true
+    export CASSANDRA_ENABLED=true
+    export REDIS_ENABLED=true
     ;;
   esac
   docker compose "${compose_files[@]}" up -d
-  docker compose -f docker-compose.app.yml up -d
+  BRANCH="-$BRANCH" \
+    docker compose -f docker-compose.app.yml up -d
 
   if [ "$need_sleep" == true ]; then
-    printf "${YELLOW}Wait for services to start${NC}\n"
-    sleep $((SLEEP_SECONDS))
+    SLEEP_SECONDS=$((SLEEP_SECONDS * 3))
   fi
 
+  printf "${YELLOW}Wait for services to start${NC}\n"
+  sleep $((SLEEP_SECONDS))
+
   printf "${YELLOW}Start benchmark${NC}\n"
-  BRANCH="-$BRANCH" \
-    docker compose -f docker-compose.benchmark.yml build
+  docker compose -f docker-compose.benchmark.yml build
   EXIT_AFTER_TIMEOUT="$BENCHMARK_EXIT_AFTER_TIMEOUT" \
     docker compose -f docker-compose.benchmark.yml up -d --scale benchmark="$BENCHMARK_INSTANCES_NUM" benchmark
 
@@ -83,7 +93,7 @@ for branch_name in "${BRANCHES[@]}"; do
   printf "${YELLOW}Save logs${NC}\n"
   logs_dir="$HOME/$BENCHMARK_OUTPUT_DIR/$logs_dir"
   [ -d "$logs_dir" ] || mkdir -p "$logs_dir"
-  docker compose -f docker-compose.benchmark.yml cp benchmark:/app/logs "$BENCHMARK_OUTPUT_DIR"/"$logs_dir"
+  docker compose -f docker-compose.benchmark.yml cp benchmark:/app/logs "$logs_dir"
   printf "${GREEN}Saved logs to %s${NC}\n" "$logs_dir"
   docker compose -f docker-compose.benchmark.yml down
 done
