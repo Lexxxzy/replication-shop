@@ -11,60 +11,48 @@ import (
 )
 
 type CassandraManager struct {
-	instances []*gocql.Session
-	configs   []types.CassandraInstance
-	index     int
+	session *gocql.Session
 }
 
 var CassandraProxy *CassandraManager
 
 func NewCassandraManager(configs []types.CassandraInstance) *CassandraManager {
-	manager := &CassandraManager{
-		configs: configs,
-		index:   0,
-	}
-	manager.instances = make([]*gocql.Session, len(configs))
-	for i, config := range configs {
-		manager.connect(i, config, 0)
-	}
+	manager := &CassandraManager{}
+	manager.connect(configs, 0)
 	return manager
 }
 
-func (manager *CassandraManager) connect(index int, config types.CassandraInstance, attempt int) {
-	cluster := gocql.NewCluster(config.IP)
-	cluster.Port = config.Port
+func (manager *CassandraManager) connect(configs []types.CassandraInstance, attempt int) {
+	cluster := gocql.NewCluster()
+	for _, config := range configs {
+		cluster.Hosts = append(cluster.Hosts, fmt.Sprintf("%s:%d", config.IP, config.Port))
+	}
 	cluster.DisableInitialHostLookup = true
 	cluster.ProtoVersion = 4
-	cluster.Consistency = gocql.LocalQuorum
+	cluster.Compressor = &gocql.SnappyCompressor{}
+	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
 	session, err := cluster.CreateSession()
+	session.SetConsistency(gocql.One)
 	if err != nil {
-		log.Printf("Failed to connect to Cassandra instance at %s:%d, error: %v\n", config.IP, config.Port, err)
+		log.Printf("Failed to connect to Cassandra instances, error: %v\n", err)
 		delay := time.Second * 10
 		if attempt == 1 {
 			delay *= 2
 		}
 		time.AfterFunc(delay, func() {
-			manager.connect(index, config, attempt+1)
+			manager.connect(configs, attempt+1)
 		})
 		return
 	} else {
-		log.Printf("Connected to Cassandra instance at %s:%d\n", config.IP, config.Port)
+		log.Println("Connected to Cassandra instances")
 	}
 
-	manager.instances[index] = session
+	manager.session = session
 }
 
 func (manager *CassandraManager) GetCurrentSession() *gocql.Session {
-	for i := 0; i < len(manager.instances); i++ {
-		idx := (manager.index + i) % len(manager.instances)
-		if manager.instances[idx] != nil {
-			log.Printf("INFO: Using Cassandra instance at %s:%d\n", manager.configs[idx].IP, manager.configs[idx].Port)
-			manager.index = (idx + 1) % len(manager.instances)
-			return manager.instances[idx]
-		}
-	}
-	log.Fatal("No Cassandra connection is available")
-	return nil
+	log.Println("INFO: Using cassandra instance")
+	return manager.session
 }
 
 func InitCassandra(configPath string) error {
