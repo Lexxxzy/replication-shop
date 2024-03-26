@@ -35,6 +35,23 @@ services:
       - ./instances.prod.toml:/app/instances.prod.toml
     ports:
       - "8000"
+  app-3:
+    image: replication-shop-app${BRANCH_WITH_PREFIX:-}:latest
+    pull_policy: never
+    build: .
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      CONFIG_PATH: instances.prod.toml
+      POSTGRESQL_ENABLED:
+      CASSANDRA_ENABLED:
+      REDIS_ENABLED:
+    volumes:
+      - ./instances.prod.toml:/app/instances.prod.toml
+    ports:
+      - "8000"
   nginx-1:
     image: bitnami/nginx:latest
     user: root
