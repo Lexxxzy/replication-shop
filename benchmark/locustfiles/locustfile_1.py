@@ -30,9 +30,8 @@ class ApiUser(FastHttpUser):
                 password=person.password(length=6),
             )
             with self.client.post(
-                    "/register",
-                    json=current_user.model_dump(include={"name", "email", "password"}),
-
+                "/register",
+                json=current_user.model_dump(include={"name", "email", "password"}),
             ) as resp:
                 resp: FastResponse
                 resp.raise_for_status()
@@ -48,9 +47,8 @@ class ApiUser(FastHttpUser):
                 "password": self.current_user.password,
             }
             with self.client.post(
-                    "/login",
-                    json=payload,
-
+                "/login",
+                json=payload,
             ) as resp:
                 resp: FastResponse
                 resp.raise_for_status()
@@ -86,7 +84,9 @@ class ApiUser(FastHttpUser):
             if self.cart is not None:
                 if self.cart.cart is not None:
                     payload = {"item_id": self.cart.cart[-1].id}
-                    self.client.delete("/my/cart/remove", json=payload, headers=self.headers)
+                    self.client.delete(
+                        "/my/cart/remove", json=payload, headers=self.headers
+                    )
                     self.get_cart()
 
         @task
