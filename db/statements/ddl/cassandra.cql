@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS products
     price           float,
     manufacturer    text,
     product_type_id int
-) WITH compaction = {'class': 'SizeTieredCompactionStrategy', 'bucket_high': 1.5 };
+);
 
 CREATE INDEX IF NOT EXISTS product_name_index ON products (name);
-CREATE INDEX IF NOT EXISTS product_type_id_index ON products (product_type_id);
