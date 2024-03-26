@@ -13,7 +13,7 @@ source "$SCRIPT_DIR"/../.env
 
 BRANCHES=${BRANCHES}
 
-SLEEP_SECONDS=6
+SLEEP_SECONDS=10
 
 down_service() {
   local files
@@ -39,25 +39,20 @@ for branch_name in "${BRANCHES[@]}"; do
     -t "replication-shop-app-$branch_name"
 
   printf "${GREEN}Start services${NC}\n"
-  compose_files=(-f docker-compose.app.yml)
-  need_sleep=false
+
+  compose_files+=(-f docker-compose.postgresql.yml -f docker-compose.cassandra.yml -f docker-compose.redis.yml)
   case "$branch_name" in
   postgresql)
-    compose_files+=(-f docker-compose.postgresql.yml)
     export POSTGRESQL_ENABLED=true
     export CASSANDRA_ENABLED=false
     export REDIS_ENABLED=false
     ;;
   postgresql-cassandra)
-    compose_files+=(-f docker-compose.postgresql.yml -f docker-compose.cassandra.yml)
-    need_sleep=true
     export POSTGRESQL_ENABLED=true
     export CASSANDRA_ENABLED=true
     export REDIS_ENABLED=false
     ;;
   postgresql-cassandra-redis)
-    compose_files+=(-f docker-compose.postgresql.yml -f docker-compose.cassandra.yml -f docker-compose.redis.yml)
-    need_sleep=true
     export POSTGRESQL_ENABLED=true
     export CASSANDRA_ENABLED=true
     export REDIS_ENABLED=true
@@ -66,13 +61,8 @@ for branch_name in "${BRANCHES[@]}"; do
 
   printf "${GREEN}Wait for services to start${NC}\n"
 
-  if [ "$need_sleep" == true ]; then
-    SLEEP_SECONDS=$((SLEEP_SECONDS + 60 * 2))
-  else
-    sleep $((SLEEP_SECONDS))
-  fi
-
   docker compose "${compose_files[@]}" up -d
+
   BRANCH_WITH_PREFIX=-${branch_name} \
     POSTGRESQL_ENABLED="$POSTGRESQL_ENABLED" \
     CASSANDRA_ENABLED="$CASSANDRA_ENABLED" \
@@ -80,7 +70,7 @@ for branch_name in "${BRANCHES[@]}"; do
     docker compose -f docker-compose.app.yml up -d
 
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
-  sleep $((SLEEP_SECONDS))
+  sleep $((SLEEP_SECONDS + 60))
 
   printf "${GREEN}Start benchmark${NC}\n"
   BRANCH=${branch_name} \
