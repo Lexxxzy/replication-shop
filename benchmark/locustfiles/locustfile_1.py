@@ -107,10 +107,11 @@ class ApiUser(FastHttpUser):
 
         @task
         def cancel_order(self):
-            order: models.Order = random.choice(self.orders.orders)
-            payload = {"order_id": order.id}
-            self.client.delete("/my/orders/cancel", json=payload, headers=self.headers)
-            self.get_orders()
+            if self.orders.orders:
+                order: models.Order = random.choice(self.orders.orders)
+                payload = {"order_id": order.id}
+                self.client.delete("/my/orders/cancel", json=payload, headers=self.headers)
+                self.get_orders()
 
         @task
         def logout(self):
