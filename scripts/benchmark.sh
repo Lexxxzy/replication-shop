@@ -70,7 +70,7 @@ for branch_name in "${BRANCHES[@]}"; do
     docker compose -f docker-compose.app.yml up -d
 
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
-  sleep $((SLEEP_SECONDS + 60))
+  sleep $((SLEEP_SECONDS + 80))
 
   printf "${GREEN}Start benchmark${NC}\n"
   BRANCH=${branch_name} \
