@@ -30,12 +30,12 @@ func (manager *CassandraManager) connect(configs []types.CassandraInstance, atte
 	cluster.DisableInitialHostLookup = true
 	cluster.ProtoVersion = 4
 	cluster.Compressor = &gocql.SnappyCompressor{}
-	cluster.Consistency = gocql.One
 	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
 	session, err := cluster.CreateSession()
+	session.SetConsistency(gocql.One)
 	if err != nil {
 		log.Printf("Failed to connect to Cassandra instances, error: %v\n", err)
-		delay := time.Second * 5
+		delay := time.Second * 10
 		if attempt == 1 {
 			delay *= 2
 		}
@@ -44,7 +44,7 @@ func (manager *CassandraManager) connect(configs []types.CassandraInstance, atte
 		})
 		return
 	} else {
-		log.Println("Connected to Cassandra pool")
+		log.Println("Connected to Cassandra instances")
 	}
 
 	manager.session = session
