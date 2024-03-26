@@ -13,7 +13,14 @@ source "$SCRIPT_DIR"/../.env
 
 BRANCHES=${BRANCHES}
 
-SLEEP_SECONDS=10
+SLEEP_SECONDS=20
+
+rm_volumes() {
+  if [ "$(docker volume ls -q | wc -l)" -ge 1 ]; then
+    printf "${RED}Remove all volumes${NC}\n"
+    docker volume rm $(docker volume ls -q | grep pg)
+  fi
+}
 
 down_service() {
   local files
@@ -23,13 +30,11 @@ down_service() {
     printf "${RED}Stopping %s containers${NC}\n" "$file"
     docker compose -f "$file" down
   done
-  if [ "$(docker volume ls -q | wc -l)" -ge 1 ]; then
-    printf "${RED}Remove all volumes${NC}\n"
-    docker volume rm $(docker volume ls -q)
-  fi
+
 }
 
 down_service
+rm_volumes
 
 for branch_name in "${BRANCHES[@]}"; do
   printf "${GREEN}Branch: %s${NC}\n" "$branch_name"
@@ -70,7 +75,11 @@ for branch_name in "${BRANCHES[@]}"; do
     docker compose -f docker-compose.app.yml up -d
 
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
-  sleep $((SLEEP_SECONDS + 80))
+
+  if [ "$branch_name" == "*cassandra*" ]; then
+    sleep $((SLEEP_SECONDS + 60 * 2))
+  fi
+  sleep $((SLEEP_SECONDS))
 
   printf "${GREEN}Start benchmark${NC}\n"
   BRANCH=${branch_name} \
@@ -78,4 +87,5 @@ for branch_name in "${BRANCHES[@]}"; do
     docker compose -f "$SCRIPT_DIR"/../docker-compose.benchmark.yml up
 
   down_service
+  rm_volumes
 done
