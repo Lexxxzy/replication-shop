@@ -4,3 +4,4 @@ certs
 bin
 tmp
 *.DS_Store
+/venv/

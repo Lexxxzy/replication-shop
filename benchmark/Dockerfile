@@ -1,17 +1,7 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS builder
+FROM locustio/locust:latest as benchmark
 
-WORKDIR /app
+COPY locustfiles/requirements.txt /tmp/requirements.txt
 
-COPY benchmark/ShopClient.csproj ./
+RUN pip install -r /tmp/requirements.txt
 
-RUN dotnet restore
-
-COPY benchmark ./
-
-RUN dotnet publish -c Release -o out
-
-RUN cp -R out/* ./
-
-RUN chmod +x ./scripts/*.sh
-
-CMD ["./scripts/entrypoint.sh"]
+ENTRYPOINT ["locust"]

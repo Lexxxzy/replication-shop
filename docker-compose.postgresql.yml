@@ -8,13 +8,14 @@ services:
       - pg_1_data:/bitnami/postgresql
       - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
       - ./db/statements/:/statements
+      - ./conf/postgresql://opt/bitnami/postgresql/conf/conf.d
     environment:
       - POSTGRESQL_POSTGRES_PASSWORD=postgres
       - POSTGRESQL_USERNAME=postgres
       - POSTGRESQL_PASSWORD=postgres
       - POSTGRESQL_DATABASE=postgres
       - POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS=1
-      - REPMGR_PARTNER_NODES=${REPMGR_PARTNER_NODES:-pg-1,pg-2}
+      - REPMGR_PARTNER_NODES=pg-1,pg-2
       - REPMGR_PRIMARY_HOST=pg-1
       - REPMGR_NODE_NAME=pg-1
       - REPMGR_NODE_NETWORK_NAME=pg-1
@@ -29,12 +30,13 @@ services:
       - pg_2_data:/bitnami/postgresql
       - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
       - ./db/statements/:/statements
+      - ./conf/postgresql://opt/bitnami/postgresql/conf/conf.d
     environment:
       - POSTGRESQL_POSTGRES_PASSWORD=postgres
       - POSTGRESQL_USERNAME=postgres
       - POSTGRESQL_PASSWORD=postgres
       - POSTGRESQL_DATABASE=postgres
-      - REPMGR_PARTNER_NODES=${REPMGR_PARTNER_NODES:-pg-1,pg-2}
+      - REPMGR_PARTNER_NODES=pg-1,pg-2
       - REPMGR_PRIMARY_HOST=pg-1
       - REPMGR_NODE_NAME=pg-2
       - REPMGR_NODE_NETWORK_NAME=pg-2
@@ -50,7 +52,8 @@ services:
     hostname: pgpool-1
     restart: always
     environment:
-      - PGPOOL_BACKEND_NODES=${PGPOOL_BACKEND_NODES:-0:pg-1:5432,1:pg-2:5432}
+      - PGPOOL_BACKEND_NODES=0:pg-1:5432,1:pg-2:5432
+      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2
       - PGPOOL_SR_CHECK_USER=repmgr
       - PGPOOL_SR_CHECK_PASSWORD=repmgrpassword
       - PGPOOL_ENABLE_LDAP=no
@@ -73,7 +76,8 @@ services:
     hostname: pgpool-2
     restart: always
     environment:
-      - PGPOOL_BACKEND_NODES=${PGPOOL_BACKEND_NODES:-0:pg-1:5432,1:pg-2:5432}
+      - PGPOOL_BACKEND_NODES=0:pg-1:5432,1:pg-2:5432
+      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2
       - PGPOOL_SR_CHECK_USER=repmgr
       - PGPOOL_SR_CHECK_PASSWORD=repmgrpassword
       - PGPOOL_ENABLE_LDAP=no
