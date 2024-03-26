@@ -18,7 +18,7 @@ SLEEP_SECONDS=20
 rm_volumes() {
   if [ "$(docker volume ls -q | wc -l)" -ge 1 ]; then
     printf "${RED}Remove all volumes${NC}\n"
-    docker volume rm $(docker volume ls -q | grep pg)
+    docker volume rm $(docker volume ls -q)
   fi
 }
 
