@@ -25,7 +25,7 @@ func WithAuthentication(next echo.HandlerFunc) echo.HandlerFunc {
 
 		userID, ok := sess.Values["userID"].(uuid.UUID)
 		if !ok {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"message": "User not authorized or invalid session dumps"})
+			return c.JSON(http.StatusUnauthorized, map[string]string{"message": "ApiUser not authorized or invalid session dumps"})
 		}
 
 		c.Set("userID", userID)
