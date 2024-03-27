@@ -77,7 +77,7 @@ class SequenceOfTasks(SequentialTaskSet):
     def products_list(self):
         return [
             self.products[0],
-            self.get_products[len(self.products) // 2],
+            self.products[len(self.products) // 2],
             self.products[len(self.products) - 1],
         ]
 

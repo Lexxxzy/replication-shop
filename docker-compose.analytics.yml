@@ -7,6 +7,6 @@ services:
     volumes:
       - ./analytics:/home/jovyan/work
       - ./benchmark/stats:/home/jovyan/work/stats
-      - ./conf/locust:/home/jovyan/work/locust
+      - ./conf/locust:/home/jovyan/work/locust:ro
     ports:
       - "8888:8888"
