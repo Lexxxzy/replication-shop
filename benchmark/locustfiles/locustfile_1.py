@@ -34,8 +34,8 @@ class SequenceOfTasks(SequentialTaskSet):
             password=self.person.password(length=6),
         )
         with self.client.post(
-            "/register",
-            json=current_user.model_dump(include={"name", "email", "password"}),
+                "/register",
+                json=current_user.model_dump(include={"name", "email", "password"}),
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -51,8 +51,8 @@ class SequenceOfTasks(SequentialTaskSet):
             "password": self.current_user.password,
         }
         with self.client.post(
-            "/login",
-            json=payload,
+                "/login",
+                json=payload,
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -77,7 +77,7 @@ class SequenceOfTasks(SequentialTaskSet):
     def products_list(self):
         return [
             self.products[0],
-            self.get_products[len(self.products) // 2],
+            self.products[len(self.products) // 2],
             self.products[len(self.products) - 1],
         ]
 
@@ -91,7 +91,7 @@ class SequenceOfTasks(SequentialTaskSet):
     def get_cart(self, invalidate_cache: bool = False):
         headers = {**self.headers, "Cache-Control": "no-cache"}
         with self.client.get(
-            "/my/cart", headers=headers if invalidate_cache else self.headers
+                "/my/cart", headers=headers if invalidate_cache else self.headers
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
