@@ -1,14 +1,12 @@
 package data
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"github.com/Lexxxzy/go-echo-template/db"
 	"github.com/gocql/gocql"
 	"github.com/labstack/gommon/log"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -80,30 +78,6 @@ func GetProductTypeName(productTypeId int) (string, error) {
 	return "", gocql.ErrNotFound
 }
 
-func FetchProductPrice(productID int) (float64, error) {
-	var price float64
-	query := `SELECT price FROM cassandrakeyspace.products WHERE id = ?`
-	iter := db.CassandraProxy.GetCurrentSession().Query(query, productID).Iter()
-
-	row := make(map[string]interface{})
-	if iter.MapScan(row) {
-		if rawPrice, ok := row["price"].(float32); ok {
-			price = float64(rawPrice)
-		} else {
-			return 0, fmt.Errorf("failed to fetch or convert price for product ID %d", productID)
-		}
-	} else {
-		return 0, fmt.Errorf("product with ID %d not found", productID)
-	}
-
-	if err := iter.Close(); err != nil {
-		log.Error("Error fetching product price: ", err)
-		return 0, err
-	}
-
-	return price, nil
-}
-
 func SearchProductByName(name string) ([]Product, error) {
 	var products []Product
 	query := `SELECT id, name, price, manufacturer, product_type_id FROM cassandrakeyspace.products WHERE name = ?`
@@ -134,61 +108,70 @@ func SearchProductByName(name string) ([]Product, error) {
 }
 
 func GetCartItems(userID string) ([]CartItem, error) {
-	ctx := context.Background()
-	rdb := db.RedisSentinelProxy.GetCurrentClient()
+	var cartItems []CartItem
 
-	cartKey := fmt.Sprintf("cart:%s", userID)
+	query := `
+        SELECT p.id, p.name, p.price, ci.quantity
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        JOIN cart c ON ci.cart_id = c.id
+        JOIN product_types pt ON p.product_type_id = pt.id
+        WHERE c.user_id = ?
+    `
 
-	cartItemsData, err := rdb.HGetAll(ctx, cartKey).Result()
+	rows, err := db.PostgresqlProxy.GetCurrentDB().Query(query, userID)
 	if err != nil {
-		log.Error("Error fetching cart items from Redis: ", err)
+		log.Error("Error fetching cart items: ", err)
 		return nil, err
 	}
-
-	// Early return if no cart items
-	if len(cartItemsData) == 0 {
-		return []CartItem{}, nil
-	}
-
-	var cartItems []CartItem
-	db := db.PostgresqlProxy.GetCurrentDB()
-	for productIDStr, quantityStr := range cartItemsData {
-		productID, _ := strconv.Atoi(productIDStr)
-		quantity, _ := strconv.Atoi(quantityStr)
-
-		query := `
-            SELECT p.id, p.name, p.price
-            FROM products p
-            WHERE p.id = ?
-        `
-		row := db.QueryRow(query, productID)
-		var cartItem CartItem
-		err := row.Scan(&cartItem.ProductID, &cartItem.Product, &cartItem.Price)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				log.Error("Error fetching product details: ", err)
-				return nil, err
-			}
-			continue
-		}
-		cartItem.Quantity = quantity
-		cartItem.Product = strings.TrimSpace(cartItem.Product)
-
-		cartItems = append(cartItems, cartItem)
+	defer rows.Close()
+	cartItems, err = MapRowsToCartItems(rows)
+	if err != nil {
+		return nil, err
 	}
 
 	return cartItems, nil
 }
 
 func AddProductToCart(userID string, productID int, quantity int) error {
-	ctx := context.Background()
-	rdb := db.RedisSentinelProxy.GetCurrentClient()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
+	if err != nil {
+		log.Error("Error starting transaction: ", err)
+		return err
+	}
+	defer tx.Rollback()
 
-	cartKey := fmt.Sprintf("cart:%s", userID)
+	var cartID int
+	// Попытка найти существующую корзину для пользователя
+	cartQuery := `SELECT id FROM cart WHERE user_id = ?`
+	err = tx.QueryRow(cartQuery, userID).Scan(&cartID)
+	if err != nil {
+		// Если корзина не найдена, создаем новую
+		insertCartQuery := `INSERT INTO cart (user_id) VALUES (?) RETURNING id`
+		err = tx.QueryRow(insertCartQuery, userID).Scan(&cartID)
+		if err != nil {
+			log.Error("Error creating a new cart: ", err)
+			return err
+		}
+	}
 
-	_, err := rdb.HIncrBy(ctx, cartKey, fmt.Sprintf("%d", productID), int64(quantity)).Result()
+	// Попытка добавить товар в корзину или обновить его количество, если он уже там есть
+	updateQuery := `
+        INSERT INTO cart_items (cart_id, product_id, quantity)
+        VALUES (?, ?, ?)
+        ON CONFLICT (cart_id, product_id)
+        DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity
+	`
+
+	_, err = tx.Exec(updateQuery, cartID, productID, quantity)
 	if err != nil {
 		log.Error("Error adding/updating product in cart: ", err)
+		return err
+	}
+
+	// Если дошли до сюда без ошибок, подтверждаем транзакцию
+	if err = tx.Commit(); err != nil {
+		log.Error("Error committing transaction: ", err)
 		return err
 	}
 
@@ -196,23 +179,42 @@ func AddProductToCart(userID string, productID int, quantity int) error {
 }
 
 func RemoveProductFromCart(userID string, productID int) error {
-	ctx := context.Background()
-	rdb := db.RedisSentinelProxy.GetCurrentClient()
-
-	cartKey := fmt.Sprintf("cart:%s", userID)
-
-	newQuantity, err := rdb.HIncrBy(ctx, cartKey, fmt.Sprintf("%d", productID), -1).Result()
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
 	if err != nil {
-		log.Error("Error decrementing product quantity in cart: ", err)
+		log.Error("Error starting transaction: ", err)
+		return err
+	}
+	defer tx.Rollback()
+
+	var cartID int
+	// Попытка найти существующую корзину для пользователя
+	cartQuery := `SELECT id FROM cart WHERE user_id = ?`
+	err = tx.QueryRow(cartQuery, userID).Scan(&cartID)
+	if err != nil {
+		log.Error("Error fetching cart: ", err)
 		return err
 	}
 
-	if newQuantity <= 0 {
-		_, err = rdb.HDel(ctx, cartKey, fmt.Sprintf("%d", productID)).Result()
-		if err != nil {
-			log.Error("Error removing product from cart: ", err)
-			return err
-		}
+	// Уменьшаем количество товара в корзине на 1
+	updateQuantity := `UPDATE cart_items SET quantity = quantity - 1 WHERE cart_id = ? AND product_id = ? RETURNING quantity`
+	_, err = tx.Exec(updateQuantity, cartID, productID)
+	if err != nil {
+		log.Error("Error deleting product from cart: ", err)
+		return err
+	}
+
+	// Удаляем товар из корзины, если его количество стало равно 0
+	deleteQuery := `DELETE FROM cart_items WHERE quantity = 0`
+	_, err = tx.Exec(deleteQuery, cartID, productID)
+	if err != nil {
+		log.Error("Error deleting product from cart: ", err)
+		return err
+	}
+
+	// Если дошли до сюда без ошибок, подтверждаем транзакцию
+	if err = tx.Commit(); err != nil {
+		log.Error("Error committing transaction: ", err)
+		return err
 	}
 
 	return nil
@@ -287,64 +289,76 @@ func GetOrderItems(orderID int) ([]CartItem, error) {
 	return cartItems, nil
 }
 
-func PlaceOrder(userID string, deliveryAddress string) (int, error) {
-	ctx := context.Background()
-	rdb := db.RedisSentinelProxy.GetCurrentClient()
-
-	cartKey := fmt.Sprintf("cart:%s", userID)
-
-	cartItemCount, err := rdb.HLen(ctx, cartKey).Result()
-	if err != nil || cartItemCount == 0 {
-		log.Error("Error checking cart items or cart is empty: ", err)
-		return 0, fmt.Errorf("cart is empty")
+func PlaceOrder(userID string, deliveryAddress string) (int, int, error) {
+	// Начало транзакции
+	tx, err := db.PostgresqlProxy.GetCurrentDB().Begin()
+	if err != nil {
+		log.Error("Error starting transaction: ", err)
+		return http.StatusInternalServerError, 0, fmt.Errorf("error starting transaction")
 	}
 
+	// Шаг 1: Создание заказа
 	var orderID int
 	orderQuery := `
         INSERT INTO orders (user_id, delivery_address, order_date)
         VALUES (?, ?, NOW())
         RETURNING id
     `
-	err = db.PostgresqlProxy.GetCurrentDB().QueryRow(orderQuery, userID, deliveryAddress).Scan(&orderID)
+	err = tx.QueryRow(orderQuery, userID, deliveryAddress, userID).Scan(&orderID)
 	if err != nil {
+		tx.Rollback()
 		log.Error("Error creating order: ", err)
-		return orderID, fmt.Errorf("error creating order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error creating order, please try again later")
 	}
 
-	cartItemsData, err := rdb.HGetAll(ctx, cartKey).Result()
+	// Проверка, что корзина не пуста
+	emptyCartQuery := `SELECT COUNT(*) FROM cart_items WHERE cart_id IN (SELECT id FROM cart WHERE user_id = ?)`
+	var cartItemCount int
+	err = tx.QueryRow(emptyCartQuery, userID).Scan(&cartItemCount)
+	if err != nil || cartItemCount == 0 {
+		tx.Rollback()
+		log.Error("Error checking cart items: ", err)
+		return http.StatusBadRequest, orderID, fmt.Errorf("cart is empty")
+	}
+
+	// Шаг 2: Копирование содержимого корзины в заказ
+	copyQuery := `
+        INSERT INTO order_items (order_id, product_id, quantity, price_at_order)
+        SELECT ?, ci.product_id, ci.quantity, p.price
+        FROM cart_items ci
+        JOIN products p ON ci.product_id = p.id
+        JOIN cart c ON ci.cart_id = c.id
+        WHERE c.user_id = ?
+    `
+	_, err = tx.Exec(copyQuery, orderID, userID)
 	if err != nil {
-		log.Error("Error fetching cart items from Redis: ", err)
-		return orderID, fmt.Errorf("error placing order, please try again later")
+		tx.Rollback()
+		log.Error("Error copying cart items to order items: ", err)
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
-	for productIDStr, quantityStr := range cartItemsData {
-		productID, _ := strconv.Atoi(productIDStr)
-		quantity, _ := strconv.Atoi(quantityStr)
-		price, err := FetchProductPrice(productID)
-
-		if err != nil {
-			log.Error("Error fetching product price")
-			return orderID, fmt.Errorf("error fetching product price, pleace try later")
-		}
-
-		insertOrderItemQuery := `
-            INSERT INTO order_items (order_id, product_id, quantity, price_at_order)
-            VALUES (?, ?, ?, ?)
-        `
-		_, err = db.PostgresqlProxy.GetCurrentDB().Exec(insertOrderItemQuery, orderID, productID, quantity, price)
-		if err != nil {
-			log.Error("Error inserting order item: ", err)
-			return orderID, fmt.Errorf("error placing order, please try again later")
-		}
-	}
-
-	_, err = rdb.Del(ctx, cartKey).Result()
+	// Шаг 3: Очистка корзины
+	clearCartQuery := `
+        DELETE FROM cart_items
+        WHERE cart_id IN (
+            SELECT id FROM cart WHERE user_id = ?
+        )
+    `
+	_, err = tx.Exec(clearCartQuery, userID)
 	if err != nil {
+		tx.Rollback()
 		log.Error("Error clearing cart: ", err)
-		return orderID, fmt.Errorf("error placing order, please try again later")
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
 	}
 
-	return orderID, nil
+	// Завершение транзакции
+	err = tx.Commit()
+	if err != nil {
+		log.Error("Error committing transaction: ", err)
+		return http.StatusInternalServerError, orderID, fmt.Errorf("error placing order, please try again later")
+	}
+
+	return http.StatusOK, orderID, nil
 }
 
 func CancelOrder(userID string, orderID int) (int, error) {
