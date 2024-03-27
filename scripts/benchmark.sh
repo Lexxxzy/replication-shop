@@ -13,7 +13,7 @@ source "$SCRIPT_DIR"/../.env
 
 BRANCHES=${BRANCHES}
 
-SLEEP_SECONDS=20
+SLEEP_SECONDS=30
 
 rm_volumes() {
   if [ "$(docker volume ls -q | wc -l)" -ge 1 ]; then
@@ -40,8 +40,9 @@ for branch_name in "${BRANCHES[@]}"; do
   printf "${GREEN}Branch: %s${NC}\n" "$branch_name"
 
   printf "${GREEN}Building images${NC}\n"
+
   docker build "https://github.com/Lexxxzy/replication-shop.git#$branch_name" \
-    -t "replication-shop-app-$branch_name"
+    -t "replication-shop-app-$branch_name" --no-cache
 
   printf "${GREEN}Start services${NC}\n"
 
@@ -77,13 +78,14 @@ for branch_name in "${BRANCHES[@]}"; do
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
 
   if [ "$branch_name" == "*cassandra*" ]; then
-    sleep $((SLEEP_SECONDS + 60 * 2))
+    sleep $((SLEEP_SECONDS + 60 * 1 + 30))
   fi
   sleep $((SLEEP_SECONDS))
 
   printf "${GREEN}Start benchmark${NC}\n"
   BRANCH=${branch_name} \
     BRANCH_WITH_PREFIX=_${branch_name} \
+    LOCUST_ARGS=--headless \
     docker compose -f "$SCRIPT_DIR"/../docker-compose.benchmark.yml up
 
   down_service

@@ -8,7 +8,7 @@ services:
     build:
       context: benchmark
       dockerfile: Dockerfile
-    command: -f /mnt/locust/locustfiles/locustfile_1.py --master --config /mnt/conf/locust.conf --csv /home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html
+    command: -f /mnt/locust/locustfiles/locustfile_1.py --master --config /mnt/conf/locust.conf --csv /home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html ${LOCUST_ARGS:-}
     volumes:
       - ./benchmark:/mnt/locust
       - ./conf/locust:/mnt/conf
