@@ -1,11 +1,11 @@
 import random
+from functools import lru_cache
 
 from locust import (
     FastHttpUser,
     SequentialTaskSet,
     task,
     run_single_user,
-    between,
     constant,
 )
 from locust.contrib.fasthttp import FastResponse
@@ -18,6 +18,7 @@ class SequenceOfTasks(SequentialTaskSet):
     current_user: models.User | None = None
     cart: models.MyCart | None = None
     products: list[models.Product] | None = None
+    products_by_name: list[models.Product] | None = None
     orders: models.MyOrder | None = None
 
     headers = {"Content-Type": "application/json"}
@@ -64,6 +65,27 @@ class SequenceOfTasks(SequentialTaskSet):
             resp.raise_for_status()
             data = resp.json()
             self.products = [models.Product(**x) for x in data.get("products")]
+
+    def get_products_func(self, title: str):
+        with self.client.get(f"/products?title={title}") as resp:
+            resp: FastResponse
+            resp.raise_for_status()
+            data = resp.json()
+            self.products_by_name = [models.Product(**x) for x in data.get("products")]
+
+    @lru_cache
+    def products_list(self):
+        return [
+            self.products[0],
+            self.get_products[len(self.products) // 2],
+            self.products[len(self.products) - 1],
+        ]
+
+    @task
+    def get_product_by_name(self):
+        for product in self.products_list():
+            self.wait()
+            self.get_products_func(product.name)
 
     @task
     def get_cart(self, invalidate_cache: bool = False):

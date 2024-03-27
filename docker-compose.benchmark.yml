@@ -8,9 +8,9 @@ services:
     build:
       context: benchmark
       dockerfile: Dockerfile
-    command: -f /mnt/locust/locustfiles/locustfile_1.py --master --config /mnt/conf/locust.conf --csv /home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html
+    command: -f /home/locust/locustfiles/locustfile_1.py --master --config /mnt/conf/locust.conf --csv /home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html --headless
     volumes:
-      - ./benchmark:/mnt/locust
+      - ./benchmark:/home/locust
       - ./conf/locust:/mnt/conf
     ports:
       - "8089:8089"
@@ -20,8 +20,8 @@ services:
     build:
       context: benchmark
       dockerfile: Dockerfile
-    command: -f /mnt/locust/locustfiles/locustfile_1.py --worker --master-host benchmark-locust-master
+    command: -f /home/locust/locustfiles/locustfile_1.py --worker --master-host benchmark-locust-master
     volumes:
-      - ./benchmark:/mnt/locust
+      - ./benchmark:/home/locust
     deploy:
       replicas: 1
