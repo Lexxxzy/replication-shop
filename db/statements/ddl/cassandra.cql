@@ -1,5 +1,5 @@
 CREATE KEYSPACE IF NOT EXISTS cassandrakeyspace
-            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3};
+    WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3};
 
 USE cassandrakeyspace;
 
@@ -21,6 +21,5 @@ CREATE TABLE IF NOT EXISTS products
 ) WITH compaction = {'class': 'SizeTieredCompactionStrategy'}
    AND caching = {'keys': 'ALL', 'rows_per_partition': 'ALL'};
 
-
+CREATE INDEX IF NOT EXISTS idx_product_name ON products (name);
 CREATE INDEX IF NOT EXISTS idx_manufacturer ON products (manufacturer);
-CREATE INDEX IF NOT EXISTS idx_product_type_id ON products (product_type_id);
