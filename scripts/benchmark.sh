@@ -42,7 +42,7 @@ for branch_name in "${BRANCHES[@]}"; do
   printf "${GREEN}Building images${NC}\n"
 
   docker build "https://github.com/Lexxxzy/replication-shop.git#$branch_name" \
-    -t "replication-shop-app-$branch_name" --no-cache
+    -t "replication-shop-app-$branch_name"
 
   printf "${GREEN}Start services${NC}\n"
 
@@ -77,15 +77,16 @@ for branch_name in "${BRANCHES[@]}"; do
 
   printf "${GREEN}Wait for docker-compose.app.yml to start${NC}\n"
 
-  if [ "$branch_name" == "*cassandra*" ]; then
-    sleep $((SLEEP_SECONDS + 60 * 1 + 30))
+  if [[ $branch_name == *cassandra* ]]; then
+    sleep_seconds=$((60 * 2))
+    printf "${YELLOW}sleep %s${NC}\n" $sleep_seconds
+    sleep $((sleep_seconds))
   fi
   sleep $((SLEEP_SECONDS))
 
   printf "${GREEN}Start benchmark${NC}\n"
   BRANCH=${branch_name} \
     BRANCH_WITH_PREFIX=_${branch_name} \
-    LOCUST_ARGS=--headless \
     docker compose -f "$SCRIPT_DIR"/../docker-compose.benchmark.yml up
 
   down_service

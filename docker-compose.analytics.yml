@@ -3,7 +3,7 @@ version: '3.9'
 services:
   jupyter:
     image: jupyter/minimal-notebook
-    command: start-notebook.sh --NotebookApp.token=e0c2a405d92a6af2e2f1dde4634349a146b62b6b071fa598
+    command: start-notebook.sh --NotebookApp.token=${JUPYTER_NOTEBOOK_TOKEN}
     volumes:
       - ./analytics:/home/jovyan/work
       - ./benchmark/stats:/home/jovyan/work/stats
