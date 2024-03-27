@@ -5,7 +5,7 @@ services:
     image: docker.io/bitnami/postgresql-repmgr:latest
     hostname: pg-1
     volumes:
-      - pg_1_data:/bitnami/postgresql
+      - pg-1-data:/bitnami/postgresql
       - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
       - ./db/statements/:/statements
       - ./conf/postgresql:/opt/bitnami/postgresql/conf/conf.d
@@ -23,13 +23,16 @@ services:
       - REPMGR_PASSWORD=repmgrpassword
     ports:
       - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres -t 1" ]
+      interval: 5s
+      timeout: 2s
+      retries: 3
   pg-2:
     image: docker.io/bitnami/postgresql-repmgr:latest
     hostname: pg-2
     volumes:
-      - pg_2_data:/bitnami/postgresql
-      - ./scripts/postgresql.initdb.sh:/docker-entrypoint-initdb.d/postgresql.initdb.sh
-      - ./db/statements/:/statements
+      - pg-2-data:/bitnami/postgresql
       - ./conf/postgresql:/opt/bitnami/postgresql/conf/conf.d
     environment:
       - POSTGRESQL_POSTGRES_PASSWORD=postgres
@@ -44,16 +47,21 @@ services:
       - REPMGR_PASSWORD=repmgrpassword
     ports:
       - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres -t 1" ]
+      interval: 5s
+      timeout: 2s
+      retries: 3
     depends_on:
       pg-1:
-        condition: service_started
+        condition: service_healthy
   pgpool-1:
     image: docker.io/bitnami/pgpool:latest
     hostname: pgpool-1
     restart: always
     environment:
       - PGPOOL_BACKEND_NODES=0:pg-1:5432,1:pg-2:5432
-      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2
+      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2,pg-3
       - PGPOOL_SR_CHECK_USER=repmgr
       - PGPOOL_SR_CHECK_PASSWORD=repmgrpassword
       - PGPOOL_ENABLE_LDAP=no
@@ -62,7 +70,6 @@ services:
       - PGPOOL_ADMIN_USERNAME=admin
       - PGPOOL_ADMIN_PASSWORD=postgres
       - PGPOOL_ENABLE_LOAD_BALANCING=yes
-      - PGPOOL_HEALTH_CHECK_RETRY_DELAY=7
       - PGPOOL_ENABLE_LOG_HOSTNAME=yes
     ports:
       - "6432:5432"
@@ -71,13 +78,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    depends_on:
+      pg-1:
+        condition: service_healthy
+      pg-2:
+        condition: service_healthy
   pgpool-2:
     image: docker.io/bitnami/pgpool:latest
     hostname: pgpool-2
     restart: always
     environment:
       - PGPOOL_BACKEND_NODES=0:pg-1:5432,1:pg-2:5432
-      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2
+      - PGPOOL_BACKEND_APPLICATION_NAMES=pg-1,pg-2,pg-3
       - PGPOOL_SR_CHECK_USER=repmgr
       - PGPOOL_SR_CHECK_PASSWORD=repmgrpassword
       - PGPOOL_ENABLE_LDAP=no
@@ -86,7 +98,6 @@ services:
       - PGPOOL_ADMIN_USERNAME=admin
       - PGPOOL_ADMIN_PASSWORD=postgres
       - PGPOOL_ENABLE_LOAD_BALANCING=yes
-      - PGPOOL_HEALTH_CHECK_RETRY_DELAY=7
       - PGPOOL_ENABLE_LOG_HOSTNAME=yes
     ports:
       - "6433:5432"
@@ -95,6 +106,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    depends_on:
+      pg-1:
+        condition: service_healthy
+      pg-2:
+        condition: service_healthy
 volumes:
-  pg_1_data:
-  pg_2_data:
+  pg-1-data:
+  pg-2-data:

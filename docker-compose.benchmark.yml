@@ -1,15 +1,27 @@
 version: '3.9'
 
 services:
-  benchmark-locust:
+  benchmark-locust-master:
+    image: replication-shop-benchmark:latest
+    hostname: benchmark-locust-master
+    pull_policy: never
+    build:
+      context: benchmark
+      dockerfile: Dockerfile
+    command: -f /mnt/locust/locustfiles/locustfile_1.py --master --config /mnt/conf/locust.conf --csv /home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html
+    volumes:
+      - ./benchmark:/mnt/locust
+      - ./conf/locust:/mnt/conf
+    ports:
+      - "8089:8089"
+  benchmark-locust-worker:
     image: replication-shop-benchmark:latest
     pull_policy: never
     build:
       context: benchmark
       dockerfile: Dockerfile
-    command: --config /conf/locust.conf --csv=/home/locust/stats/${BRANCH:-}/stats --html report${BRANCH_WITH_PREFIX:-}.html --headless
+    command: -f /mnt/locust/locustfiles/locustfile_1.py --worker --master-host benchmark-locust-master
     volumes:
-      - ./benchmark/:/home/locust/
-      - ./conf/locust:/conf
-    ports:
-      - "8089:8089"
+      - ./benchmark:/mnt/locust
+    deploy:
+      replicas: 1

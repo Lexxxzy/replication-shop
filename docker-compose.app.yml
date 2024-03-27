@@ -60,7 +60,7 @@ services:
     volumes:
       - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
     ports:
-      - "80"
+      - "81:80"
   nginx-2:
     image: bitnami/nginx:latest
     user: root
@@ -69,7 +69,7 @@ services:
     volumes:
       - ./conf/nginx/server_block.conf:/opt/bitnami/nginx/conf/server_blocks/server_block.conf:ro
     ports:
-      - "80"
+      - "82:80"
   haproxy:
     image: bitnami/haproxy:latest
     volumes:
