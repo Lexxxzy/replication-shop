@@ -26,7 +26,14 @@ class SequenceOfTasks(SequentialTaskSet):
     person = Person("en")
     address = Address()
 
-    @task
+    def on_start(self) -> None:
+        self.register()
+        self.wait()
+        self.login()
+
+    def on_stop(self):
+        self.logout()
+
     def register(self):
         current_user = models.User(
             name=self.person.full_name(),
@@ -41,7 +48,6 @@ class SequenceOfTasks(SequentialTaskSet):
             resp.raise_for_status()
             self.current_user = current_user
 
-    @task
     def login(self):
         payload = {
             "email": self.current_user.email,
@@ -54,6 +60,9 @@ class SequenceOfTasks(SequentialTaskSet):
             resp: FastResponse
             resp.raise_for_status()
             self.headers.update({"session": resp.headers.get("Set-Cookie")})
+
+    def logout(self):
+        self.client.post("/logout", headers=self.headers)
 
     @task
     def get_products(self):
@@ -86,10 +95,9 @@ class SequenceOfTasks(SequentialTaskSet):
                 self.get_products_func(product.name)
 
     @task
-    def get_cart(self, invalidate_cache: bool = False):
-        headers = {**self.headers, "Cache-Control": "no-cache"}
+    def get_cart(self):
         with self.client.get(
-                "/my/cart", headers=headers if invalidate_cache else self.headers
+                "/my/cart", headers=self.headers
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -103,7 +111,7 @@ class SequenceOfTasks(SequentialTaskSet):
             "quantity": random.randint(1, 10),
         }
         self.client.put("/my/cart/add", json=payload, headers=self.headers)
-        self.get_cart(invalidate_cache=True)
+        self.get_cart()
 
     @task
     def remove_from_cart(self):
@@ -113,7 +121,7 @@ class SequenceOfTasks(SequentialTaskSet):
                 self.client.delete(
                     "/my/cart/remove", json=payload, headers=self.headers
                 )
-                self.get_cart(invalidate_cache=True)
+                self.get_cart()
 
     @task
     def get_orders(self):
@@ -130,10 +138,6 @@ class SequenceOfTasks(SequentialTaskSet):
         payload = {"delivery_address": self.address.address()}
         self.client.post("/my/orders/add", json=payload, headers=self.headers)
         self.get_orders()
-
-    @task
-    def logout(self):
-        self.client.post("/logout", headers=self.headers)
 
 
 class ApiUser(FastHttpUser):
