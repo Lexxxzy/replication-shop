@@ -48,6 +48,7 @@ func (manager *CassandraManager) connect(index int, config types.CassandraInstan
 	} else {
 		log.Printf("Connected to Cassandra instance at %s:%d\n", config.IP, config.Port)
 	}
+	session.SetConsistency(gocql.One)
 	manager.sessions[index] = session
 }
 
