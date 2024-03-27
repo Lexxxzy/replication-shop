@@ -3,6 +3,7 @@ version: '3.9'
 services:
   benchmark-locust-master:
     image: replication-shop-benchmark:latest
+    container_name: benchmark-locust-master${BRANCH_WITH_PREFIX:-}
     hostname: benchmark-locust-master
     pull_policy: never
     build:
@@ -16,6 +17,7 @@ services:
       - "8089:8089"
   benchmark-locust-worker:
     image: replication-shop-benchmark:latest
+    container_name: benchmark-locust-worker${BRANCH_WITH_PREFIX:-}
     pull_policy: never
     build:
       context: benchmark

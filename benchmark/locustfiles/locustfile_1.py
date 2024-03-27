@@ -6,7 +6,7 @@ from locust import (
     SequentialTaskSet,
     task,
     run_single_user,
-    constant,
+    between,
 )
 from locust.contrib.fasthttp import FastResponse
 from mimesis import Person, Address
@@ -34,8 +34,8 @@ class SequenceOfTasks(SequentialTaskSet):
             password=self.person.password(length=6),
         )
         with self.client.post(
-            "/register",
-            json=current_user.model_dump(include={"name", "email", "password"}),
+                "/register",
+                json=current_user.model_dump(include={"name", "email", "password"}),
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -43,16 +43,13 @@ class SequenceOfTasks(SequentialTaskSet):
 
     @task
     def login(self):
-        if not self.current_user:
-            self.wait()
-            self.register()
         payload = {
             "email": self.current_user.email,
             "password": self.current_user.password,
         }
         with self.client.post(
-            "/login",
-            json=payload,
+                "/login",
+                json=payload,
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -83,15 +80,16 @@ class SequenceOfTasks(SequentialTaskSet):
 
     @task
     def get_product_by_name(self):
-        for product in self.products_list():
-            self.wait()
-            self.get_products_func(product.name)
+        if self.products:
+            for product in self.products_list():
+                self.wait()
+                self.get_products_func(product.name)
 
     @task
     def get_cart(self, invalidate_cache: bool = False):
         headers = {**self.headers, "Cache-Control": "no-cache"}
         with self.client.get(
-            "/my/cart", headers=headers if invalidate_cache else self.headers
+                "/my/cart", headers=headers if invalidate_cache else self.headers
         ) as resp:
             resp: FastResponse
             resp.raise_for_status()
@@ -99,7 +97,6 @@ class SequenceOfTasks(SequentialTaskSet):
 
     @task
     def add_to_cart(self):
-        self.get_products()
         product: models.Product = random.choice(self.products)
         payload = {
             "item_id": product.id,
@@ -128,7 +125,6 @@ class SequenceOfTasks(SequentialTaskSet):
 
     @task
     def add_order(self):
-        self.wait()
         self.add_to_cart()
         self.wait()
         payload = {"delivery_address": self.address.address()}
@@ -136,25 +132,13 @@ class SequenceOfTasks(SequentialTaskSet):
         self.get_orders()
 
     @task
-    def cancel_order(self):
-        if self.orders.orders:
-            order: models.Order = random.choice(self.orders.orders)
-            payload = {"order_id": order.id}
-            self.client.delete("/my/orders/cancel", json=payload, headers=self.headers)
-            self.get_orders()
-
-    @task
     def logout(self):
         self.client.post("/logout", headers=self.headers)
-        self.cart = None
-        self.orders = None
-        self.products = None
-        self.current_user = None
 
 
 class ApiUser(FastHttpUser):
     host = "http://localhost:80"
-    wait_time = constant(0.5)
+    wait_time = between(1, 2)
     tasks = [SequenceOfTasks]
 
 
