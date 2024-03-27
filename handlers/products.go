@@ -143,7 +143,7 @@ func PlaceOrder(c echo.Context) error {
 	}
 	deliveryAddress := c.FormValue("delivery_address")
 
-	oid, err := data.PlaceOrder(owner.String(), deliveryAddress)
+	_, oid, err := data.PlaceOrder(owner.String(), deliveryAddress)
 
 	if err != nil {
 		return util.JsonErrorResponse(c, http.StatusBadRequest, err.Error())
